@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "avatar1",
+      "description": "User avatar 1",
+      "imageUrl": "https://picsum.photos/seed/1/100/100",
+      "imageHint": "person face"
+    },
+    {
+      "id": "avatar2",
+      "description": "User avatar 2",
+      "imageUrl": "https://picsum.photos/seed/2/100/100",
+      "imageHint": "gamer profile"
+    },
+    {
+      "id": "avatar3",
+      "description": "User avatar 3",
+      "imageUrl": "https://picsum.photos/seed/3/100/100",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar4",
+      "description": "User avatar 4",
+      "imageUrl": "https://picsum.photos/seed/4/100/100",
+      "imageHint": "abstract art"
+    },
+    {
+      "id": "avatar5",
+      "description": "User avatar 5",
+      "imageUrl": "https://picsum.photos/seed/5/100/100",
+      "imageHint": "cool robot"
+    }
+  ]
+}

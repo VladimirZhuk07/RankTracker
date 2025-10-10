@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "totalMaps": {
+          "type": "number",
+          "description": "Total maps played by the user."
+        },
+        "totalKills": {
+          "type": "number",
+          "description": "Total kills made by the user."
+        },
+        "totalDeaths": {
+          "type": "number",
+          "description": "Total deaths of the user."
+        },
+        "totalDamage": {
+          "type": "number",
+          "description": "Total damage dealt by the user."
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "URL of the user's avatar image."
+        }
+      },
+      "required": ["name", "totalMaps", "totalKills", "totalDeaths", "totalDamage"]
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Stores user profile information."
+    }
+  }
+}
