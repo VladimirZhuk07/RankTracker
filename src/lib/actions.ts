@@ -3,11 +3,19 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { createHash } from 'crypto';
 import { addUser, updateUserAvatar, updateUserStats, deleteUserById, getUserById, userExistsByName } from './data';
 import { User } from './definitions';
 import { calculateStats } from './calculations';
 
 type AuthState = string | undefined;
+
+// SHA-256 hash of "admin" password
+const ADMIN_PASSWORD_HASH = 'cadf7a05c69a6c2a561960455804ff1e40305a04ae6699caa923963a01872407';
+
+function hashPassword(password: string): string {
+  return createHash('sha256').update(password).digest('hex');
+}
 
 export async function authenticate(
   prevState: AuthState,
@@ -17,9 +25,12 @@ export async function authenticate(
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
 
-    if (username === 'admin' && password === 'admin') {
+    const passwordHash = hashPassword(password);
+
+    if (username === 'admin' && passwordHash === ADMIN_PASSWORD_HASH) {
       const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      cookies().set('session', 'loggedIn', { expires, httpOnly: true });
+      const cookieStore = await cookies();
+      cookieStore.set('session', 'loggedIn', { expires, httpOnly: true });
     } else {
       return 'Invalid username or password.';
     }
@@ -36,7 +47,8 @@ export async function authenticate(
 }
 
 export async function logout() {
-  cookies().delete('session');
+  const cookieStore = await cookies();
+  cookieStore.delete('session');
   redirect('/');
 }
 

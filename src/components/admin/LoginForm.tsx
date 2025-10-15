@@ -35,9 +35,8 @@ export function LoginForm() {
             <Input
               id="username"
               name="username"
-              placeholder="admin"
+              placeholder="Enter username"
               required
-              defaultValue="admin"
             />
           </div>
           <div className="space-y-2">
@@ -47,8 +46,7 @@ export function LoginForm() {
               name="password"
               type="password"
               required
-              placeholder="••••••••"
-              defaultValue="admin"
+              placeholder="Enter password"
             />
           </div>
           {errorMessage && (
