@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef, useActionState, use } from 'react';
 import type { User } from '@/lib/definitions';
+import { previewCsvFile, previewCsvText } from '@/lib/preview-actions';
+import { CsvPreviewTable, ParsedUserData } from '@/components/admin/CsvPreviewTable';
 import {
   Tabs,
   TabsContent,
@@ -53,6 +55,7 @@ import {
   updateUser,
   updateRatingsFromCSV,
   updateRatingsFromCsvText,
+  updateRatingsFromParsedData,
   deleteUser,
 } from '@/lib/actions';
 import { Edit, UserPlus, Upload, AlertCircle, Trash2, LoaderCircle, ClipboardPaste } from 'lucide-react';
@@ -204,9 +207,89 @@ function CsvUploadForm() {
     const [fileName, setFileName] = useState('');
     const formRef = useRef<HTMLFormElement>(null);
     const [state, formAction] = useActionState(updateRatingsFromCSV, initialCsvUploadState);
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const [previewData, setPreviewData] = useState<ParsedUserData[]>([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const formDataRef = useRef<FormData | null>(null);
+
+    // Process the preview
+    const handlePreview = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!formRef.current) return;
+        
+        const formData = new FormData(formRef.current);
+        formDataRef.current = formData;
+        
+        try {
+            setIsProcessing(true);
+            const result = await previewCsvFile(formData);
+            
+            if (result.success && result.data) {
+                setPreviewData(result.data);
+                setIsPreviewMode(true);
+                toast({
+                    title: 'CSV Parsed',
+                    description: result.message,
+                });
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Preview Failed',
+                    description: result.message,
+                });
+            }
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Preview Failed',
+                description: 'An error occurred while processing the CSV file.',
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Handle final submission after preview confirmation
+    const handleConfirm = async (editedData: ParsedUserData[]) => {
+        try {
+            setIsProcessing(true);
+            const result = await updateRatingsFromParsedData(editedData);
+            
+            if (result?.success) {
+                toast({
+                    title: 'Upload Successful',
+                    description: result.message,
+                });
+                formRef.current?.reset();
+                setFileName('');
+                setIsPreviewMode(false);
+                setPreviewData([]);
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Upload Failed',
+                    description: result.message || 'Failed to process CSV file.',
+                });
+            }
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Upload Failed',
+                description: 'An error occurred while processing the CSV file.',
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Cancel preview mode
+    const handleCancel = () => {
+        setIsPreviewMode(false);
+        setPreviewData([]);
+    };
 
     useEffect(() => {
-        if (state?.message) {
+        if (state?.message && !isPreviewMode) {
             if (state.success) {
                 toast({
                     title: 'Upload Successful',
@@ -222,24 +305,56 @@ function CsvUploadForm() {
                 });
             }
         }
-    }, [state, toast]);
+    }, [state, toast, isPreviewMode]);
 
     return (
         <Card>
-            <form action={formAction} ref={formRef}>
-                <CardHeader>
-                    <CardTitle>Upload from File</CardTitle>
-                    <CardDescription>Update stats from a CSV file. Format: name,maps,kills,deaths,damage</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Label htmlFor="csv-file">CSV File</Label>
-                    <Input id="csv-file" name="csv-file" type="file" required accept=".csv" onChange={(e) => setFileName(e.target.files?.[0]?.name || '')}/>
-                    {fileName && <p className="mt-2 text-sm text-muted-foreground">Selected: {fileName}</p>}
-                </CardContent>
-                <CardFooter>
-                    <CsvUploadButton />
-                </CardFooter>
-            </form>
+            {!isPreviewMode ? (
+                <form onSubmit={handlePreview} ref={formRef}>
+                    <CardHeader>
+                        <CardTitle>Upload from File</CardTitle>
+                        <CardDescription>Update stats from a CSV file. Format: name,maps,kills,deaths,damage</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Label htmlFor="csv-file">CSV File</Label>
+                        <Input 
+                            id="csv-file" 
+                            name="csv-file" 
+                            type="file" 
+                            required 
+                            accept=".csv" 
+                            onChange={(e) => setFileName(e.target.files?.[0]?.name || '')}
+                        />
+                        {fileName && <p className="mt-2 text-sm text-muted-foreground">Selected: {fileName}</p>}
+                    </CardContent>
+                    <CardFooter>
+                        <Button 
+                            type="submit" 
+                            className="w-full" 
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? 'Processing...' : 'Preview Data'}
+                        </Button>
+                    </CardFooter>
+                </form>
+            ) : (
+                <div>
+                    <CardHeader>
+                        <CardTitle>Preview Data</CardTitle>
+                        <CardDescription>
+                            Review the data before saving. {previewData.length} valid entries found.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <CsvPreviewTable 
+                            parsedData={previewData}
+                            onConfirm={handleConfirm}
+                            onCancel={handleCancel}
+                            isProcessing={isProcessing}
+                        />
+                    </CardContent>
+                </div>
+            )}
         </Card>
     );
 }
@@ -258,9 +373,88 @@ function CsvPasteForm() {
     const { toast } = useToast();
     const formRef = useRef<HTMLFormElement>(null);
     const [state, formAction] = useActionState(updateRatingsFromCsvText, initialCsvUploadState);
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const [previewData, setPreviewData] = useState<ParsedUserData[]>([]);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const formDataRef = useRef<FormData | null>(null);
+
+    // Process the preview
+    const handlePreview = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!formRef.current) return;
+        
+        const formData = new FormData(formRef.current);
+        formDataRef.current = formData;
+        
+        try {
+            setIsProcessing(true);
+            const result = await previewCsvText(formData);
+            
+            if (result.success && result.data) {
+                setPreviewData(result.data);
+                setIsPreviewMode(true);
+                toast({
+                    title: 'CSV Parsed',
+                    description: result.message,
+                });
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Preview Failed',
+                    description: result.message,
+                });
+            }
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Preview Failed',
+                description: 'An error occurred while processing the CSV text.',
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Handle final submission after preview confirmation
+    const handleConfirm = async (editedData: ParsedUserData[]) => {
+        try {
+            setIsProcessing(true);
+            const result = await updateRatingsFromParsedData(editedData);
+            
+            if (result?.success) {
+                toast({
+                    title: 'Update Successful',
+                    description: result.message,
+                });
+                formRef.current?.reset();
+                setIsPreviewMode(false);
+                setPreviewData([]);
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Update Failed',
+                    description: result.message || 'Failed to process CSV text.',
+                });
+            }
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Update Failed',
+                description: 'An error occurred while processing the CSV text.',
+            });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // Cancel preview mode
+    const handleCancel = () => {
+        setIsPreviewMode(false);
+        setPreviewData([]);
+    };
 
     useEffect(() => {
-        if (state?.message) {
+        if (state?.message && !isPreviewMode) {
             if (state.success) {
                 toast({
                     title: 'Update Successful',
@@ -275,29 +469,54 @@ function CsvPasteForm() {
                 });
             }
         }
-    }, [state, toast]);
+    }, [state, toast, isPreviewMode]);
 
     return (
         <Card>
-            <form action={formAction} ref={formRef}>
-                <CardHeader>
-                    <CardTitle>Paste CSV Content</CardTitle>
-                    <CardDescription>Update stats by pasting content. Format: name,maps,kills,deaths,damage</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Label htmlFor="csv-text">CSV Content</Label>
-                    <Textarea 
-                        id="csv-text" 
-                        name="csv-text" 
-                        required 
-                        rows={5}
-                        placeholder="player1,15,20,15,2150&#10;player2,5,15,10,3120&#10;player3,4,10,20,2410"
-                    />
-                </CardContent>
-                <CardFooter>
-                    <CsvPasteButton />
-                </CardFooter>
-            </form>
+            {!isPreviewMode ? (
+                <form onSubmit={handlePreview} ref={formRef}>
+                    <CardHeader>
+                        <CardTitle>Paste CSV Content</CardTitle>
+                        <CardDescription>Update stats by pasting content. Format: name,maps,kills,deaths,damage</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Label htmlFor="csv-text">CSV Content</Label>
+                        <Textarea 
+                            id="csv-text" 
+                            name="csv-text" 
+                            required 
+                            rows={5}
+                            placeholder="player1,15,20,15,2150&#10;player2,5,15,10,3120&#10;player3,4,10,20,2410"
+                        />
+                    </CardContent>
+                    <CardFooter>
+                        <Button 
+                            type="submit" 
+                            className="w-full" 
+                            disabled={isProcessing}
+                        >
+                            {isProcessing ? 'Processing...' : 'Preview Data'}
+                        </Button>
+                    </CardFooter>
+                </form>
+            ) : (
+                <div>
+                    <CardHeader>
+                        <CardTitle>Preview Data</CardTitle>
+                        <CardDescription>
+                            Review the data before saving. {previewData.length} valid entries found.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <CsvPreviewTable 
+                            parsedData={previewData}
+                            onConfirm={handleConfirm}
+                            onCancel={handleCancel}
+                            isProcessing={isProcessing}
+                        />
+                    </CardContent>
+                </div>
+            )}
         </Card>
     );
 }

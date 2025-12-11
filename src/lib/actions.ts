@@ -5,8 +5,9 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { createHash } from 'crypto';
 import { addUser, updateUserAvatar, updateUserStats, deleteUserById, getUserById, userExistsByName } from './data';
-import { User } from './definitions';
+import { User, UserStatsData } from './definitions';
 import { calculateStats } from './calculations';
+import type { ParsedUserData } from '@/components/admin/CsvPreviewTable';
 
 type AuthState = string | undefined;
 
@@ -122,6 +123,67 @@ type CsvUploadResult = {
     message: string;
     users?: User[];
 }
+
+// Helper function to parse CSV row into user data entry
+function parseCsvRow(row: string): { name: string; stats: UserStatsData } | null {
+    const [name, mapsStr, killsStr, deathsStr, damageStr] = row.split(',').map(s => s.trim());
+    
+    if (!name || !mapsStr || !killsStr || !deathsStr || !damageStr) {
+        return null;
+    }
+    
+    const stats = {
+        totalMaps: parseInt(mapsStr, 10),
+        totalKills: parseInt(killsStr, 10),
+        totalDeaths: parseInt(deathsStr, 10),
+        totalDamage: parseInt(damageStr, 10),
+    };
+    
+    if (Object.values(stats).some(isNaN)) {
+        return null; // Skip malformed rows
+    }
+    
+    return { name, stats };
+}
+
+// Shared helper function to process user data entries
+async function processUserDataEntries(entries: Array<{ name: string; stats: UserStatsData }>): Promise<{ updatedCount: number; newCount: number }> {
+    let updatedCount = 0;
+    let newCount = 0;
+
+    for (const entry of entries) {
+        const { name, stats } = entry;
+        
+        if (!name || !stats) {
+            continue; // Skip invalid entries
+        }
+
+        // Validate stats are numbers
+        if (Object.values(stats).some(isNaN)) {
+            continue; // Skip malformed entries
+        }
+
+        const userExisted = await userExistsByName(name);
+        await updateUserStats(name, stats, false, true); // Accumulate stats
+        if(userExisted) {
+            updatedCount++;
+        } else {
+            newCount++;
+        }
+    }
+
+    return { updatedCount, newCount };
+}
+
+// Helper to build success message
+function buildUpdateMessage(updatedCount: number, newCount: number, defaultMessage: string): string {
+    let message = '';
+    if (updatedCount > 0) message += `${updatedCount} existing user(s) updated. `;
+    if (newCount > 0) message += `${newCount} new user(s) created.`;
+    if (message === '') message = defaultMessage;
+    return message;
+}
+
 export async function updateRatingsFromCSV(prevState: any, formData: FormData): Promise<CsvUploadResult> {
     const file = formData.get('csv-file') as File;
 
@@ -135,40 +197,18 @@ export async function updateRatingsFromCSV(prevState: any, formData: FormData): 
     try {
         const text = await file.text();
         const rows = text.split('\n').filter(row => row.trim() !== '');
-        let updatedCount = 0;
-        let newCount = 0;
-
-        for (const row of rows) {
-            const [name, mapsStr, killsStr, deathsStr, damageStr] = row.split(',').map(s => s.trim());
-            if (name && mapsStr && killsStr && deathsStr && damageStr) {
-                const newStats = {
-                    totalMaps: parseInt(mapsStr, 10),
-                    totalKills: parseInt(killsStr, 10),
-                    totalDeaths: parseInt(deathsStr, 10),
-                    totalDamage: parseInt(damageStr, 10),
-                };
-
-                if (Object.values(newStats).some(isNaN)) {
-                   continue; // Skip malformed rows
-                }
-
-                const userExisted = await userExistsByName(name);
-                await updateUserStats(name, newStats, false, true); // Accumulate stats
-                if(userExisted) {
-                    updatedCount++;
-                } else {
-                    newCount++;
-                }
-            }
+        const entries = rows.map(parseCsvRow).filter((entry): entry is { name: string; stats: UserStatsData } => entry !== null);
+        
+        if (entries.length === 0) {
+            return { success: false, message: 'No valid data found in the CSV file.' };
         }
+
+        const { updatedCount, newCount } = await processUserDataEntries(entries);
         
         revalidatePath('/');
         revalidatePath('/admin/dashboard');
         
-        let message = '';
-        if (updatedCount > 0) message += `${updatedCount} existing user(s) updated. `;
-        if (newCount > 0) message += `${newCount} new user(s) created.`;
-        if (message === '') message = 'No users were updated or created from the CSV.';
+        const message = buildUpdateMessage(updatedCount, newCount, 'No users were updated or created from the CSV.');
         
         return { success: true, message };
 
@@ -186,45 +226,52 @@ export async function updateRatingsFromCsvText(prevState: any, formData: FormDat
 
     try {
         const rows = csvText.split('\n').filter(row => row.trim() !== '');
-        let updatedCount = 0;
-        let newCount = 0;
-
-        for (const row of rows) {
-            const [name, mapsStr, killsStr, deathsStr, damageStr] = row.split(',').map(s => s.trim());
-            if (name && mapsStr && killsStr && deathsStr && damageStr) {
-                const newStats = {
-                    totalMaps: parseInt(mapsStr, 10),
-                    totalKills: parseInt(killsStr, 10),
-                    totalDeaths: parseInt(deathsStr, 10),
-                    totalDamage: parseInt(damageStr, 10),
-                };
-
-                if (Object.values(newStats).some(isNaN)) {
-                   continue; // Skip malformed rows
-                }
-
-                const userExisted = await userExistsByName(name);
-                await updateUserStats(name, newStats, false, true); // Accumulate stats
-                if(userExisted) {
-                    updatedCount++;
-                } else {
-                    newCount++;
-                }
-            }
+        const entries = rows.map(parseCsvRow).filter((entry): entry is { name: string; stats: UserStatsData } => entry !== null);
+        
+        if (entries.length === 0) {
+            return { success: false, message: 'No valid data found in the CSV content.' };
         }
+
+        const { updatedCount, newCount } = await processUserDataEntries(entries);
         
         revalidatePath('/');
         revalidatePath('/admin/dashboard');
         
-        let message = '';
-        if (updatedCount > 0) message += `${updatedCount} existing user(s) updated. `;
-        if (newCount > 0) message += `${newCount} new user(s) created.`;
-        if (message === '') message = 'No users were updated or created from the CSV.';
+        const message = buildUpdateMessage(updatedCount, newCount, 'No users were updated or created from the CSV.');
         
         return { success: true, message };
 
     } catch (error) {
         return { success: false, message: 'Failed to process CSV text.' };
+    }
+}
+
+export async function checkUserExists(name: string): Promise<boolean> {
+    if (!name || name.trim() === '') {
+        return false;
+    }
+    return await userExistsByName(name.trim());
+}
+
+export async function updateRatingsFromParsedData(data: ParsedUserData[]): Promise<CsvUploadResult> {
+    if (!data || data.length === 0) {
+        return { success: false, message: 'No data provided.' };
+    }
+
+    try {
+        const entries = data.map(item => ({ name: item.name, stats: item.stats }));
+        const { updatedCount, newCount } = await processUserDataEntries(entries);
+        
+        revalidatePath('/');
+        revalidatePath('/admin/dashboard');
+        
+        const message = buildUpdateMessage(updatedCount, newCount, 'No users were updated or created from the data.');
+        
+        return { success: true, message };
+
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: 'Failed to process data.' };
     }
 }
 
