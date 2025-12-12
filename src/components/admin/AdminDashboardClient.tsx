@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useActionState, use } from 'react';
 import type { User } from '@/lib/definitions';
-import { previewCsvFile, previewCsvText } from '@/lib/preview-actions';
+import { previewCsvFile, previewCsvText, previewImageFile } from '@/lib/preview-actions';
 import { CsvPreviewTable, ParsedUserData } from '@/components/admin/CsvPreviewTable';
 import {
   Tabs,
@@ -55,6 +55,7 @@ import {
   updateUser,
   updateRatingsFromCSV,
   updateRatingsFromCsvText,
+  updateRatingsFromImage,
   updateRatingsFromParsedData,
   deleteUser,
 } from '@/lib/actions';
@@ -88,17 +89,12 @@ function CreateUserForm() {
                     description: state.message,
                 });
                 formRef.current?.reset();
-                state.message = '';
-                state.user = null;
-                state.error = false;
             } else if (state.error) {
                 toast({
                     variant: "destructive",
                     title: 'Error',
                     description: state.message,
                 });
-                state.message = '';
-                state.error = false;
             }
         }
     }, [state, toast]);
@@ -160,6 +156,7 @@ function CreateUserButton() {
 
 export function AdminDashboardClient() {
   const { firestore } = useFirebase();
+  const [isMounted, setIsMounted] = useState(false);
 
   const usersQuery = React.useMemo(() => {
     if (!firestore) return null;
@@ -167,6 +164,21 @@ export function AdminDashboardClient() {
   }, [firestore]);
 
   const { data: users, loading } = useCollection(usersQuery);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="py-6 flex items-center justify-center">
+        <div className="text-center">
+          <LoaderCircle className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-muted-foreground">Loading admin panel...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="py-6">
@@ -205,12 +217,31 @@ const initialCsvUploadState = {
 function CsvUploadForm() {
     const { toast } = useToast();
     const [fileName, setFileName] = useState('');
+    const [fileType, setFileType] = useState<'csv' | 'image' | null>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [state, formAction] = useActionState(updateRatingsFromCSV, initialCsvUploadState);
     const [isPreviewMode, setIsPreviewMode] = useState(false);
     const [previewData, setPreviewData] = useState<ParsedUserData[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const formDataRef = useRef<FormData | null>(null);
+
+    // Handle file selection
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setFileName(file.name);
+            if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                setFileType('csv');
+            } else if (file.type.startsWith('image/')) {
+                setFileType('image');
+            } else {
+                setFileType(null);
+            }
+        } else {
+            setFileName('');
+            setFileType(null);
+        }
+    };
 
     // Process the preview
     const handlePreview = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -222,13 +253,25 @@ function CsvUploadForm() {
         
         try {
             setIsProcessing(true);
-            const result = await previewCsvFile(formData);
+            
+            let result;
+            if (fileType === 'csv') {
+                result = await previewCsvFile(formData);
+            } else if (fileType === 'image') {
+                // For images, we need to rename the form field
+                const file = formData.get('file-upload') as File;
+                const imageFormData = new FormData();
+                imageFormData.append('image-file', file);
+                result = await previewImageFile(imageFormData);
+            } else {
+                throw new Error('Unsupported file type');
+            }
             
             if (result.success && result.data) {
                 setPreviewData(result.data);
                 setIsPreviewMode(true);
                 toast({
-                    title: 'CSV Parsed',
+                    title: fileType === 'csv' ? 'CSV Parsed' : 'Image Analyzed',
                     description: result.message,
                 });
             } else {
@@ -242,7 +285,7 @@ function CsvUploadForm() {
             toast({
                 variant: 'destructive',
                 title: 'Preview Failed',
-                description: 'An error occurred while processing the CSV file.',
+                description: error instanceof Error ? error.message : 'An error occurred while processing the file.',
             });
         } finally {
             setIsProcessing(false);
@@ -313,27 +356,51 @@ function CsvUploadForm() {
                 <form onSubmit={handlePreview} ref={formRef}>
                     <CardHeader>
                         <CardTitle>Upload from File</CardTitle>
-                        <CardDescription>Update stats from a CSV file. Format: name,maps,kills,deaths,damage</CardDescription>
+                        <CardDescription>
+                            Upload a CSV file (format: name,maps,kills,deaths,damage) or an image of CS2 stats table
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Label htmlFor="csv-file">CSV File</Label>
+                        <Label htmlFor="file-upload">CSV or Image File</Label>
                         <Input 
-                            id="csv-file" 
-                            name="csv-file" 
+                            id="file-upload" 
+                            name="file-upload" 
                             type="file" 
                             required 
-                            accept=".csv" 
-                            onChange={(e) => setFileName(e.target.files?.[0]?.name || '')}
+                            accept=".csv,image/*" 
+                            onChange={handleFileChange}
                         />
-                        {fileName && <p className="mt-2 text-sm text-muted-foreground">Selected: {fileName}</p>}
+                        {fileName && (
+                            <div className="mt-2 space-y-1">
+                                <p className="text-sm text-muted-foreground">Selected: {fileName}</p>
+                                {fileType === 'image' && (
+                                    <p className="text-sm text-blue-600">
+                                        ⚡ Image will be analyzed using AI (rate limited to 1 request per 10 seconds)
+                                    </p>
+                                )}
+                                {fileType === 'csv' && (
+                                    <p className="text-sm text-green-600">
+                                        📄 CSV file will be parsed directly
+                                    </p>
+                                )}
+                                {fileType === null && fileName && (
+                                    <p className="text-sm text-red-600">
+                                        ❌ Unsupported file type. Please upload a CSV or image file.
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </CardContent>
                     <CardFooter>
                         <Button 
                             type="submit" 
                             className="w-full" 
-                            disabled={isProcessing}
+                            disabled={isProcessing || !fileType}
                         >
-                            {isProcessing ? 'Processing...' : 'Preview Data'}
+                            {isProcessing ? 
+                                (fileType === 'image' ? 'Analyzing Image...' : 'Processing...') : 
+                                'Preview Data'
+                            }
                         </Button>
                     </CardFooter>
                 </form>
@@ -670,9 +737,6 @@ function EditUserDialog({ user }: { user: User }) {
                     description: state.message,
                 });
             }
-            state.message = '';
-            state.user = null;
-            state.success = false;
         }
     }, [state, toast]);
 

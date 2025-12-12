@@ -8,6 +8,7 @@ import { addUser, updateUserAvatar, updateUserStats, deleteUserById, getUserById
 import { User, UserStatsData } from './definitions';
 import { calculateStats } from './calculations';
 import type { ParsedUserData } from '@/components/admin/CsvPreviewTable';
+import { processImageWithAI } from '@/lib/image-actions';
 
 type AuthState = string | undefined;
 
@@ -356,4 +357,54 @@ export async function getRatingsCSV(users: (User & { rating: number; rank: numbe
     });
 
     return [headers.join(','), ...rows].join('\n');
+}
+
+export async function updateRatingsFromImage(prevState: any, formData: FormData): Promise<CsvUploadResult> {
+    const file = formData.get('image-file') as File;
+
+    if (!file || file.size === 0) {
+        return { success: false, message: 'No image file uploaded.' };
+    }
+
+    // Check if it's an image file
+    if (!file.type.startsWith('image/')) {
+        return { success: false, message: 'Invalid file type. Please upload an image file.' };
+    }
+
+    try {
+        // Convert image to base64
+        const arrayBuffer = await file.arrayBuffer();
+        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+        
+        // Analyze image with Gemini AI
+        const result = await processImageWithAI({
+            imageData: base64Data,
+            mimeType: file.type,
+        });
+
+        // Process the CSV data using existing function
+        const csvText = result.csvData;
+        const rows = csvText.split('\n').filter(row => row.trim() !== '');
+        const entries = rows.map(parseCsvRow).filter((entry): entry is { name: string; stats: UserStatsData } => entry !== null);
+        
+        if (entries.length === 0) {
+            return { success: false, message: 'No valid data found in the image analysis.' };
+        }
+
+        const { updatedCount, newCount } = await processUserDataEntries(entries);
+        
+        revalidatePath('/');
+        revalidatePath('/admin/dashboard');
+        
+        const message = buildUpdateMessage(updatedCount, newCount, 'No users were updated or created from the image analysis.');
+        
+        return { success: true, message };
+
+    } catch (error) {
+        console.error('Image processing error:', error);
+        return { 
+            success: false, 
+            message: error instanceof Error ? error.message : 'Failed to process image file.' 
+        };
+    }
 }

@@ -71,9 +71,11 @@ export function CsvPreviewTable({ parsedData, onConfirm, onCancel, isProcessing 
       };
       setEditedData(updated);
       // Check if user exists after a short delay to debounce
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         checkAndUpdateExistingStatus(index, value as string);
       }, 500);
+      
+      // Cleanup function would be handled by React's effect cleanup if needed
     } else {
       updated[index] = {
         ...updated[index],

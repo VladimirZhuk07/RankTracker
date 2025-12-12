@@ -2,6 +2,7 @@
 
 import { userExistsByName } from './data';
 import { ParsedUserData } from '@/components/admin/CsvPreviewTable';
+import { processImageWithAI } from '@/lib/image-actions';
 
 export async function previewCsvFile(formData: FormData): Promise<{
   success: boolean;
@@ -117,4 +118,41 @@ async function parseCsvContent(content: string): Promise<{
     message: message.trim(),
     data: parsedData
   };
+}
+
+export async function previewImageFile(formData: FormData): Promise<{
+  success: boolean;
+  message: string;
+  data?: ParsedUserData[];
+}> {
+  const file = formData.get('image-file') as File;
+
+  if (!file || file.size === 0) {
+    return { success: false, message: 'No image file uploaded.' };
+  }
+  
+  if (!file.type.startsWith('image/')) {
+    return { success: false, message: 'Invalid file type. Please upload an image file.' };
+  }
+
+  try {
+    // Convert image to base64
+    const arrayBuffer = await file.arrayBuffer();
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+    
+    // Analyze image with Gemini AI
+    const result = await processImageWithAI({
+      imageData: base64Data,
+      mimeType: file.type,
+    });
+
+    // Parse the CSV data
+    return await parseCsvContent(result.csvData);
+  } catch (error) {
+    console.error('Image processing error:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to process image file.' 
+    };
+  }
 }
