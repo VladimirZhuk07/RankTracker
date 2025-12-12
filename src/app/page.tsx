@@ -79,22 +79,23 @@ function StatsPopover({
 
   const tableRowContent = (
     <>
-      {isSelectionMode && (
+      {isSelectionMode ? (
         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={isSelected}
             onCheckedChange={handleSelectionChange}
           />
         </TableCell>
+      ) : (
+        <TableCell className="text-center">
+          <Badge
+            variant="outline"
+            className={`text-lg font-bold ${getRankColor(stats.rank)}`}
+          >
+            {stats.rank}
+          </Badge>
+        </TableCell>
       )}
-      <TableCell className="text-center">
-        <Badge
-          variant="outline"
-          className={`text-lg font-bold ${getRankColor(stats.rank)}`}
-        >
-          {stats.rank}
-        </Badge>
-      </TableCell>
       <TableCell>
         <div className="flex items-center gap-3">
           <Avatar>
@@ -370,12 +371,6 @@ export default function Home() {
                         Add randomness for similar skill players
                       </label>
                     </div>
-                    
-                    {selectedPlayers.size < 3 && (
-                      <p className="text-sm text-muted-foreground">
-                        Select at least 3 players to continue
-                      </p>
-                    )}
                   </CardContent>
                   
                   <CardFooter className="flex gap-3">
@@ -404,10 +399,11 @@ export default function Home() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  {isTeamSelectionMode && (
+                  {isTeamSelectionMode ? (
                     <TableHead className="w-16 text-center">Select</TableHead>
+                  ) : (
+                    <TableHead className="w-16 text-center">Rank</TableHead>
                   )}
-                  <TableHead className="w-16 text-center">Rank</TableHead>
                   <TableHead>Player</TableHead>
                   <TableHead className="text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -431,7 +427,7 @@ export default function Home() {
               <TableBody>
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={isTeamSelectionMode ? 4 : 3} className="text-center">
+                    <TableCell colSpan={3} className="text-center">
                       <div className="flex items-center justify-center py-8">
                         <LoaderCircle className="h-8 w-8 animate-spin text-muted-foreground" />
                         <span className="ml-4">Loading Rankings...</span>
@@ -441,7 +437,7 @@ export default function Home() {
                 )}
                 {!loading && rankedUsers.length === 0 && (
                    <TableRow>
-                    <TableCell colSpan={isTeamSelectionMode ? 4 : 3} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                       No players found. Add some in the admin dashboard!
                     </TableCell>
                   </TableRow>
