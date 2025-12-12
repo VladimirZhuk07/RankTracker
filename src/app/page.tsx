@@ -42,6 +42,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 function getRankColor(rank: number) {
   if (rank === 1) return 'bg-yellow-500/80 text-yellow-950 border-yellow-500';
@@ -337,33 +345,43 @@ export default function Home() {
             )}
 
             {isTeamSelectionMode && (
-              <div className="mt-6 space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="text-lg font-semibold text-blue-900 mb-2">
-                    Select Players for Teams
-                  </h3>
-                  <p className="text-blue-700 mb-4">
-                    Choose at least 3 players to divide into balanced teams.
-                  </p>
+              <div className="mt-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      Select Players for Teams
+                    </CardTitle>
+                    <CardDescription>
+                      Choose at least 3 players to divide into balanced teams.
+                    </CardDescription>
+                  </CardHeader>
                   
-                  {/* Randomness Toggle */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <Checkbox
-                      id="randomness-toggle"
-                      checked={useRandomness}
-                      onCheckedChange={setUseRandomness}
-                    />
-                    <label htmlFor="randomness-toggle" className="text-sm text-blue-700 cursor-pointer flex items-center gap-1">
-                      <Shuffle className="h-4 w-4" />
-                      Add randomness for similar skill players
-                    </label>
-                  </div>
+                  <CardContent className="space-y-4">
+                    {/* Randomness Toggle */}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="randomness-toggle"
+                        checked={useRandomness}
+                        onCheckedChange={setUseRandomness}
+                      />
+                      <label htmlFor="randomness-toggle" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
+                        <Shuffle className="h-4 w-4" />
+                        Add randomness for similar skill players
+                      </label>
+                    </div>
+                    
+                    {selectedPlayers.size < 3 && (
+                      <p className="text-sm text-muted-foreground">
+                        Select at least 3 players to continue
+                      </p>
+                    )}
+                  </CardContent>
                   
-                  <div className="flex gap-3">
+                  <CardFooter className="flex gap-3">
                     <Button 
                       onClick={handleCancelSelection}
                       variant="outline"
-                      className="border-gray-300"
                     >
                       <X className="mr-2 h-4 w-4" />
                       Cancel
@@ -371,18 +389,12 @@ export default function Home() {
                     <Button 
                       onClick={handleDivideIntoTeams}
                       disabled={!canDivideIntoTeams}
-                      className="bg-blue-600 hover:bg-blue-700"
                     >
                       <Users className="mr-2 h-4 w-4" />
                       Divide into Teams ({selectedPlayers.size} selected)
                     </Button>
-                  </div>
-                  {selectedPlayers.size < 3 && (
-                    <p className="text-sm text-blue-600 mt-2">
-                      Select at least 3 players to continue
-                    </p>
-                  )}
-                </div>
+                  </CardFooter>
+                </Card>
               </div>
             )}
         </div>
@@ -467,58 +479,89 @@ export default function Home() {
           </DialogHeader>
 
           {teamResult && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Team Alpha */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-blue-900 mb-3">
-                  {teamResult.team1.name} (Avg: {teamResult.team1.averageRating.toFixed(2)})
-                </h3>
-                <div className="space-y-2">
+              <Card className="border-l-4 border-l-blue-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    {teamResult.team1.name}
+                  </CardTitle>
+                  <CardDescription>
+                    Average Rating: {teamResult.team1.averageRating.toFixed(2)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
                   {teamResult.team1.players.map((player, index) => (
-                    <div key={player.id} className="flex justify-between items-center bg-white rounded px-3 py-2">
-                      <span className="font-bold text-gray-900">{player.name}</span>
+                    <div key={player.id} className="flex justify-between items-center bg-muted rounded px-3 py-2">
+                      <span className="font-bold">{player.name}</span>
                       <span className="text-sm font-mono font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {player.rating.toFixed(2)}
                       </span>
                     </div>
                   ))}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Team Beta */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-green-900 mb-3">
-                  {teamResult.team2.name} (Avg: {teamResult.team2.averageRating.toFixed(2)})
-                </h3>
-                <div className="space-y-2">
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    {teamResult.team2.name}
+                  </CardTitle>
+                  <CardDescription>
+                    Average Rating: {teamResult.team2.averageRating.toFixed(2)}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
                   {teamResult.team2.players.map((player, index) => (
-                    <div key={player.id} className="flex justify-between items-center bg-white rounded px-3 py-2">
-                      <span className="font-bold text-gray-900">{player.name}</span>
+                    <div key={player.id} className="flex justify-between items-center bg-muted rounded px-3 py-2">
+                      <span className="font-bold">{player.name}</span>
                       <span className="text-sm font-mono font-bold bg-green-100 text-green-800 px-2 py-1 rounded">
                         {player.rating.toFixed(2)}
                       </span>
                     </div>
                   ))}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Balance Analysis */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">📊 Balance Analysis</h4>
-                <p className="text-sm text-gray-700">{teamResult.balanceAnalysis.explanation}</p>
-                <div className="mt-2 flex items-center gap-4 text-xs text-gray-600">
-                  <span>Rating Difference: {teamResult.balanceAnalysis.ratingDifference.toFixed(2)}</span>
-                  <span>Fairness Score: {teamResult.balanceAnalysis.fairnessScore.toFixed(1)}%</span>
-                </div>
-              </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart className="h-5 w-5" />
+                    Balance Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    {teamResult.balanceAnalysis.explanation}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span>Rating Difference: <strong>{teamResult.balanceAnalysis.ratingDifference.toFixed(2)}</strong></span>
+                    <span>Fairness Score: <strong>{teamResult.balanceAnalysis.fairnessScore.toFixed(1)}%</strong></span>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Copy Text Preview */}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-2">📋 Copy Text</h4>
-                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono bg-white border rounded p-3 max-h-32 overflow-y-auto">
-                  {generateTeamText(teamResult)}
-                </pre>
-              </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Copy className="h-5 w-5" />
+                    Copy Text
+                  </CardTitle>
+                  <CardDescription>
+                    Preview of the text that will be copied to your clipboard
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted rounded p-3 max-h-32 overflow-y-auto">
+                    {generateTeamText(teamResult)}
+                  </pre>
+                </CardContent>
+              </Card>
             </div>
           )}
 
