@@ -467,15 +467,37 @@ export default function Home() {
 
       {/* Team Results Dialog */}
       <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto custom-scrollbar [&>button]:right-2 [&>button]:top-2">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              🎯 Teams Created!
-            </DialogTitle>
-            <DialogDescription>
-              Your balanced teams are ready. You can copy this text to share in chat.
-            </DialogDescription>
+            <div className="flex items-center justify-between pr-8">
+              <div>
+                <DialogTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  🎯 Teams Created!
+                </DialogTitle>
+                <DialogDescription>
+                  Your balanced teams are ready. You can copy this text.
+                </DialogDescription>
+              </div>
+              {useRandomness && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Recalculate teams with randomness
+                    const selectedPlayersData = rankedUsers.filter(({ user }) => 
+                      selectedPlayers.has(user.id)
+                    );
+                    const newTeamDivision = divideIntoBalancedTeams(selectedPlayersData, 'random-weighted');
+                    setTeamResult(newTeamDivision);
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Shuffle className="h-3 w-3" />
+                  Recalculate
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
           {teamResult && (
