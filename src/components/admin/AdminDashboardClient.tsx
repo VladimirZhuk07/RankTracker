@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useActionState, use } from 'react';
-import type { User } from '@/lib/definitions';
+import type { User } from '@/lib/storage/definitions';
 import { previewCsvFile, previewCsvText, previewImageFile } from '@/lib/preview-actions';
 import { CsvPreviewTable, ParsedUserData } from '@/components/admin/CsvPreviewTable';
 import {

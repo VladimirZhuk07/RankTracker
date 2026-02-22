@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
-import type { User } from '@/lib/definitions';
+import type { User } from '@/lib/storage/definitions';
 import { Header } from '@/components/Header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

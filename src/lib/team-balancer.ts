@@ -5,7 +5,7 @@
  * and performance metrics without requiring AI services.
  */
 
-import type { User } from '@/lib/definitions';
+import type { User } from '@/lib/storage/definitions';
 import type { UserStats } from '@/lib/calculations';
 
 export type PlayerData = {

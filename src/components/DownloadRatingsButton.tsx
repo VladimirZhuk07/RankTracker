@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { getRatingsCSV } from '@/lib/actions';
-import type { User } from '@/lib/definitions';
+import type { User } from '@/lib/storage/definitions';
 import { useToast } from '@/hooks/use-toast';
 
 type RankedUser = User & { rating: number; rank: number; kdRatio: number; averageDamage: number; };

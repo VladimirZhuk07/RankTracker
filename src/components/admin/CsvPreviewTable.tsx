@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, X, LoaderCircle } from "lucide-react";
-import { UserStatsData } from '@/lib/definitions';
+import { UserStatsData } from '@/lib/storage/definitions';
 import { checkUserExists } from '@/lib/actions';
 
 export type ParsedUserData = {

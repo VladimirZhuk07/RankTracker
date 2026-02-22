@@ -1,6 +1,6 @@
 'use server';
 
-import { userExistsByName } from './data';
+import { userExistsByName } from './storage/data';
 import { ParsedUserData } from '@/components/admin/CsvPreviewTable';
 import { processImageWithAI } from '@/lib/image-actions';
 

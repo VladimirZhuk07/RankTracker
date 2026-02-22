@@ -1,4 +1,4 @@
-import type { User } from './definitions';
+import type { User } from './storage/definitions';
 
 export type UserStats = {
   kdRatio: number;
