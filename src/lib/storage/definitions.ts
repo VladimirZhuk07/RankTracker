@@ -1,3 +1,14 @@
+import type { Timestamp } from 'firebase/firestore';
+
+export const CS2_MAPS = [
+  'Ancient',
+  'Anubis',
+  'Dust II',
+  'Inferno',
+  'Mirage',
+  'Nuke',
+] as const;
+
 export type UserStatsData = {
   totalMaps: number;
   totalKills: number;
@@ -5,8 +16,28 @@ export type UserStatsData = {
   totalDamage: number;
 };
 
-export type User = UserStatsData & {
+export type User = {
   id: string;
   name: string;
   avatarUrl: string;
+};
+
+export type MatchRecord = {
+  id: string;
+  userId: string;
+  name: string;
+  kills: number;
+  deaths: number;
+  damage: number;
+  won: boolean;
+  date: Timestamp;
+  sessionId: string;
+  createdAt: Timestamp;
+};
+
+export type SessionRecord = {
+  id: string;       // same value as sessionId on MatchRecord
+  mapIndex: number;
+  date: Timestamp;
+  createdAt: Timestamp;
 };

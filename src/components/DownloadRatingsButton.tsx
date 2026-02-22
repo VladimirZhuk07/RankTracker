@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
 import { getRatingsCSV } from '@/lib/actions';
-import type { User } from '@/lib/storage/definitions';
+import type { User, UserStatsData } from '@/lib/storage/definitions';
 import { useToast } from '@/hooks/use-toast';
 
-type RankedUser = User & { rating: number; rank: number; kdRatio: number; averageDamage: number; };
+type RankedUser = User & UserStatsData & { rating: number; rank: number; kdRatio: number; averageDamage: number; };
 
 export function DownloadRatingsButton({ users }: { users: RankedUser[] }) {
     const [isDownloading, setIsDownloading] = useState(false);

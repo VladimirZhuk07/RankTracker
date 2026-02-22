@@ -1,4 +1,4 @@
-import type { User } from './storage/definitions';
+import type { UserStatsData } from './storage/definitions';
 
 export type UserStats = {
   kdRatio: number;
@@ -7,13 +7,11 @@ export type UserStats = {
   rank: number;
 };
 
-export function calculateStats(user: User): Omit<UserStats, 'rank'> {
-  const { totalKills, totalDeaths, totalDamage, totalMaps } = user;
+export function calculateStats(stats: UserStatsData): Omit<UserStats, 'rank'> {
+  const { totalKills, totalDeaths, totalDamage, totalMaps } = stats;
 
   const kdRatio = totalDeaths > 0 ? totalKills / totalDeaths : totalKills;
   const averageDamage = totalMaps > 0 ? totalDamage / totalMaps : 0;
-  
-  // New rating formula
   const rating = kdRatio * 2 + averageDamage / 100;
 
   return {

@@ -9,13 +9,27 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Check, X, LoaderCircle } from "lucide-react";
-import { UserStatsData } from '@/lib/storage/definitions';
 import { checkUserExists } from '@/lib/actions';
+import { CS2_MAPS } from '@/lib/storage/definitions';
 
 export type ParsedUserData = {
   name: string;
-  stats: UserStatsData;
+  kills: number;
+  deaths: number;
+  damage: number;
+  won: boolean;
+  mapIndex: number;
+  date: string; // ISO date string YYYY-MM-DD, defaults to today
   isExisting: boolean;
 }
 
@@ -27,32 +41,40 @@ type CsvPreviewTableProps = {
 };
 
 export function CsvPreviewTable({ parsedData, onConfirm, onCancel, isProcessing }: CsvPreviewTableProps) {
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local timezone
+  const [matchDate, setMatchDate] = useState<string>(parsedData[0]?.date ?? today);
+  const [mapIndex, setMapIndex] = useState<number>(parsedData[0]?.mapIndex ?? 0);
   const [editedData, setEditedData] = useState<ParsedUserData[]>(parsedData);
   const [checkingNames, setCheckingNames] = useState<Set<number>>(new Set());
 
-  // Update edited data when parsedData changes
   useEffect(() => {
     setEditedData(parsedData);
+    setMatchDate(parsedData[0]?.date ?? today);
+    setMapIndex(parsedData[0]?.mapIndex ?? 0);
   }, [parsedData]);
 
+  const handleMatchDateChange = (value: string) => {
+    setMatchDate(value);
+    setEditedData(prev => prev.map(row => ({ ...row, date: value })));
+  };
+
+  const handleMapChange = (value: string) => {
+    const idx = parseInt(value, 10);
+    setMapIndex(idx);
+    setEditedData(prev => prev.map(row => ({ ...row, mapIndex: idx })));
+  };
+
   const checkAndUpdateExistingStatus = useCallback(async (index: number, name: string) => {
-    if (!name || name.trim() === '') {
-      return;
-    }
+    if (!name || name.trim() === '') return;
 
     setCheckingNames(prev => new Set(prev).add(index));
     try {
       const exists = await checkUserExists(name);
       setEditedData(prev => {
         const updated = [...prev];
-        updated[index] = { 
-          ...updated[index], 
-          isExisting: exists 
-        };
+        updated[index] = { ...updated[index], isExisting: exists };
         return updated;
       });
-    } catch (error) {
-      console.error('Error checking user existence:', error);
     } finally {
       setCheckingNames(prev => {
         const next = new Set(prev);
@@ -62,34 +84,23 @@ export function CsvPreviewTable({ parsedData, onConfirm, onCancel, isProcessing 
     }
   }, []);
 
-  const updateField = async (index: number, field: 'name' | 'totalMaps' | 'totalKills' | 'totalDeaths' | 'totalDamage', value: string | number) => {
+  const updateName = (index: number, value: string) => {
     const updated = [...editedData];
-    if (field === 'name') {
-      updated[index] = { 
-        ...updated[index], 
-        name: value as string 
-      };
-      setEditedData(updated);
-      // Check if user exists after a short delay to debounce
-      const timeoutId = setTimeout(() => {
-        checkAndUpdateExistingStatus(index, value as string);
-      }, 500);
-      
-      // Cleanup function would be handled by React's effect cleanup if needed
-    } else {
-      updated[index] = {
-        ...updated[index],
-        stats: {
-          ...updated[index].stats,
-          [field]: typeof value === 'string' ? parseInt(value, 10) || 0 : value,
-        },
-      };
-      setEditedData(updated);
-    }
+    updated[index] = { ...updated[index], name: value };
+    setEditedData(updated);
+    setTimeout(() => checkAndUpdateExistingStatus(index, value), 500);
   };
 
-  const handleConfirm = () => {
-    onConfirm(editedData);
+  const updateStatField = (index: number, field: 'kills' | 'deaths' | 'damage', value: string) => {
+    const updated = [...editedData];
+    updated[index] = { ...updated[index], [field]: parseInt(value, 10) || 0 };
+    setEditedData(updated);
+  };
+
+  const updateWon = (index: number, value: boolean) => {
+    const updated = [...editedData];
+    updated[index] = { ...updated[index], won: value };
+    setEditedData(updated);
   };
 
   if (!parsedData.length) {
@@ -105,15 +116,41 @@ export function CsvPreviewTable({ parsedData, onConfirm, onCancel, isProcessing 
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <Label htmlFor="match-date">Match date</Label>
+          <Input
+            id="match-date"
+            type="date"
+            value={matchDate}
+            onChange={(e) => handleMatchDateChange(e.target.value)}
+            className="w-auto"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <Label htmlFor="match-map">Map</Label>
+          <Select value={String(mapIndex)} onValueChange={handleMapChange}>
+            <SelectTrigger id="match-map" className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CS2_MAPS.map((map, idx) => (
+                <SelectItem key={map} value={String(idx)}>{map}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Player Name</TableHead>
-              <TableHead>Maps</TableHead>
               <TableHead>Kills</TableHead>
               <TableHead>Deaths</TableHead>
               <TableHead>Damage</TableHead>
+              <TableHead>Won</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -123,40 +160,38 @@ export function CsvPreviewTable({ parsedData, onConfirm, onCancel, isProcessing 
                 <TableCell>
                   <Input
                     value={item.name}
-                    onChange={(e) => updateField(index, 'name', e.target.value)}
+                    onChange={(e) => updateName(index, e.target.value)}
                     className="w-full min-w-[120px]"
                   />
                 </TableCell>
                 <TableCell>
                   <Input
                     type="number"
-                    value={item.stats.totalMaps}
-                    onChange={(e) => updateField(index, 'totalMaps', e.target.value)}
+                    value={item.kills}
+                    onChange={(e) => updateStatField(index, 'kills', e.target.value)}
                     className="w-full min-w-[80px]"
                   />
                 </TableCell>
                 <TableCell>
                   <Input
                     type="number"
-                    value={item.stats.totalKills}
-                    onChange={(e) => updateField(index, 'totalKills', e.target.value)}
+                    value={item.deaths}
+                    onChange={(e) => updateStatField(index, 'deaths', e.target.value)}
                     className="w-full min-w-[80px]"
                   />
                 </TableCell>
                 <TableCell>
                   <Input
                     type="number"
-                    value={item.stats.totalDeaths}
-                    onChange={(e) => updateField(index, 'totalDeaths', e.target.value)}
-                    className="w-full min-w-[80px]"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    value={item.stats.totalDamage}
-                    onChange={(e) => updateField(index, 'totalDamage', e.target.value)}
+                    value={item.damage}
+                    onChange={(e) => updateStatField(index, 'damage', e.target.value)}
                     className="w-full min-w-[100px]"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    checked={item.won}
+                    onCheckedChange={(checked) => updateWon(index, checked)}
                   />
                 </TableCell>
                 <TableCell>
@@ -184,18 +219,11 @@ export function CsvPreviewTable({ parsedData, onConfirm, onCancel, isProcessing 
       </div>
 
       <div className="flex justify-end space-x-2">
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          disabled={isProcessing}
-        >
+        <Button variant="outline" onClick={onCancel} disabled={isProcessing}>
           <X className="mr-2 h-4 w-4" />
           Cancel
         </Button>
-        <Button
-          onClick={handleConfirm}
-          disabled={isProcessing}
-        >
+        <Button onClick={() => onConfirm(editedData)} disabled={isProcessing}>
           <Check className="mr-2 h-4 w-4" />
           {isProcessing ? 'Processing...' : 'Confirm & Save'}
         </Button>

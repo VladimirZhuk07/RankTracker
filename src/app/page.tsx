@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
-import type { User } from '@/lib/storage/definitions';
+import type { MatchRecord, User, UserStatsData } from '@/lib/storage/definitions';
 import { Header } from '@/components/Header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,7 +30,7 @@ import {
 import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle } from 'lucide-react';
 import { DownloadRatingsButton } from '@/components/DownloadRatingsButton';
 import { useCollection } from '@/firebase';
-import { getUsersQuery } from '@/lib/storage/queries';
+import { getUsersQuery, getMatchesQuery } from '@/lib/storage/queries';
 import { useFirebase } from '@/firebase';
 import { useMemo, useState } from 'react';
 import { divideIntoBalancedTeams, type TeamDivisionResult } from '@/lib/team-balancer';
@@ -58,14 +58,16 @@ function getRankColor(rank: number) {
   return 'border-transparent';
 }
 
-function StatsPopover({ 
-  user, 
-  stats, 
-  isSelectionMode, 
-  isSelected, 
-  onSelectionChange 
-}: { 
-  user: User; 
+function StatsPopover({
+  user,
+  userStatsData,
+  stats,
+  isSelectionMode,
+  isSelected,
+  onSelectionChange,
+}: {
+  user: User;
+  userStatsData: UserStatsData;
   stats: UserStats;
   isSelectionMode?: boolean;
   isSelected?: boolean;
@@ -118,8 +120,8 @@ function StatsPopover({
 
   if (isSelectionMode) {
     return (
-      <TableRow 
-        className={`cursor-pointer transition-colors ${isSelected ? "bg-muted/50" : "hover:bg-muted/30"}`}
+      <TableRow
+        className={`cursor-pointer transition-colors ${isSelected ? 'bg-muted/50' : 'hover:bg-muted/30'}`}
         onClick={() => handleSelectionChange(!isSelected)}
       >
         {tableRowContent}
@@ -147,52 +149,60 @@ function StatsPopover({
               <BarChart className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">K/D Ratio</p>
-                <p className="text-lg font-bold">
-                  {stats.kdRatio.toFixed(2)}
-                </p>
+                <p className="text-lg font-bold">{stats.kdRatio.toFixed(2)}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <Target className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">ADR</p>
-                <p className="text-lg font-bold">
-                  {stats.averageDamage.toFixed(2)}
-                </p>
+                <p className="text-lg font-bold">{stats.averageDamage.toFixed(2)}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <Crosshair className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Kills</p>
-                <p className="text-lg font-bold">{user.totalKills}</p>
+                <p className="text-lg font-bold">{userStatsData.totalKills}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <Skull className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Deaths</p>
-                <p className="text-lg font-bold">{user.totalDeaths}</p>
+                <p className="text-lg font-bold">{userStatsData.totalDeaths}</p>
               </div>
             </div>
-             <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
               <Dices className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Maps</p>
-                <p className="text-lg font-bold">{user.totalMaps}</p>
+                <p className="text-lg font-bold">{userStatsData.totalMaps}</p>
               </div>
             </div>
-             <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
               <Info className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Damage</p>
-                <p className="text-lg font-bold">{user.totalDamage}</p>
+                <p className="text-lg font-bold">{userStatsData.totalDamage}</p>
               </div>
             </div>
           </div>
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+function aggregateMatchesToStats(matches: MatchRecord[]): UserStatsData {
+  return matches.reduce(
+    (acc, m) => ({
+      totalMaps: acc.totalMaps + 1,
+      totalKills: acc.totalKills + m.kills,
+      totalDeaths: acc.totalDeaths + m.deaths,
+      totalDamage: acc.totalDamage + m.damage,
+    }),
+    { totalMaps: 0, totalKills: 0, totalDeaths: 0, totalDamage: 0 }
   );
 }
 
@@ -210,21 +220,41 @@ export default function Home() {
     return getUsersQuery(firestore);
   }, [firestore]);
 
-  const { data: users, loading } = useCollection(usersQuery);
+  const matchesQuery = useMemo(() => {
+    if (!firestore) return null;
+    return getMatchesQuery(firestore);
+  }, [firestore]);
+
+  const { data: usersData, loading: usersLoading } = useCollection(usersQuery);
+  const { data: matchesData, loading: matchesLoading } = useCollection(matchesQuery);
+
+  const loading = usersLoading;
 
   const rankedUsers = useMemo(() => {
-    if (!users) return [];
-    return (users as User[])
-      .map((user) => ({
-        user,
-        stats: calculateStats(user),
-      }))
-      .sort((a, b) => b.stats.rating - a.stats.rating)
+    if (!usersData) return [];
+
+    const users = usersData as User[];
+    const matches = (matchesData ?? []) as MatchRecord[];
+
+    const matchesByUserId = matches.reduce<Record<string, MatchRecord[]>>((acc, match) => {
+      if (!acc[match.userId]) acc[match.userId] = [];
+      acc[match.userId].push(match);
+      return acc;
+    }, {});
+
+    return users
+      .map((user) => {
+        const userMatches = matchesByUserId[user.id] ?? [];
+        const userStatsData = aggregateMatchesToStats(userMatches);
+        const stats = calculateStats(userStatsData);
+        return { user, userStatsData, stats };
+      })
+      .sort((a, b) => b.stats.rating - a.stats.rating || a.user.name.localeCompare(b.user.name))
       .map((data, index) => ({
         ...data,
         stats: { ...data.stats, rank: index + 1 },
       }));
-  }, [users]);
+  }, [usersData, matchesData]);
 
   const handleCreateTeamsClick = () => {
     setIsTeamSelectionMode(true);
@@ -247,48 +277,32 @@ export default function Home() {
   };
 
   const handleDivideIntoTeams = () => {
-    try {
-      // Get selected players with their stats
-      const selectedPlayersData = rankedUsers.filter(({ user }) => 
-        selectedPlayers.has(user.id)
-      );
-      
-      console.log('Selected players for team division:', selectedPlayersData);
-      
-      // Use mathematical team balancing with optional randomness
-      const algorithm = useRandomness ? 'random-weighted' : 'balanced';
-      const teamDivision = divideIntoBalancedTeams(selectedPlayersData, algorithm);
-      console.log('Team division result:', teamDivision);
-      
-      // Show the results in a dialog
-      setTeamResult(teamDivision);
-      setShowTeamDialog(true);
-      
-    } catch (error) {
-      console.error('Error dividing teams:', error);
-      alert('Error creating teams. Please try again.');
-    }
+    const selectedPlayersData = rankedUsers
+      .filter(({ user }) => selectedPlayers.has(user.id))
+      .map(({ user, stats }) => ({ user, stats }));
+
+    const algorithm = useRandomness ? 'random-weighted' : 'balanced';
+    const teamDivision = divideIntoBalancedTeams(selectedPlayersData, algorithm);
+    setTeamResult(teamDivision);
+    setShowTeamDialog(true);
   };
 
   const generateTeamText = (result: TeamDivisionResult) => {
     const team1List = result.team1.players.map(p => `• ${p.name} (${p.rating.toFixed(2)})`).join('\n');
     const team2List = result.team2.players.map(p => `• ${p.name} (${p.rating.toFixed(2)})`).join('\n');
-    
+
     return `${result.team1.name} (Avg: ${result.team1.averageRating.toFixed(2)}):\n${team1List}\n\n` +
-           `${result.team2.name} (Avg: ${result.team2.averageRating.toFixed(2)}):\n${team2List}\n\n` +
-           `📊 ${result.balanceAnalysis.explanation}`;
+      `${result.team2.name} (Avg: ${result.team2.averageRating.toFixed(2)}):\n${team2List}\n\n` +
+      `${result.balanceAnalysis.explanation}`;
   };
 
   const handleCopyTeams = async () => {
     if (!teamResult) return;
-    
     try {
       await navigator.clipboard.writeText(generateTeamText(teamResult));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy:', error);
-      // Fallback for older browsers
+    } catch {
       const textArea = document.createElement('textarea');
       textArea.value = generateTeamText(teamResult);
       document.body.appendChild(textArea);
@@ -304,7 +318,6 @@ export default function Home() {
     setShowTeamDialog(false);
     setTeamResult(null);
     setCopied(false);
-    // Exit team selection mode after showing results
     setIsTeamSelectionMode(false);
     setSelectedPlayers(new Set());
   };
@@ -316,82 +329,75 @@ export default function Home() {
       <Header />
       <main className="flex flex-1 flex-col items-center gap-4 p-4 md:gap-8 md:p-8">
         <div className="text-center w-full max-w-4xl flex flex-col items-center">
-            <div className="flex items-center gap-4">
-              <h1 className="font-headline text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-                Player Rankings
-              </h1>
-              <DownloadRatingsButton users={rankedUsers.map(({user, stats}) => ({...user, ...stats}))} />
-            </div>
-            <p className="text-muted-foreground md:text-xl">
-                The top players in the CS2 community.
-            </p>
-            
-            {!isTeamSelectionMode && (
-              <div className="mt-6">
-                <Button 
-                  onClick={handleCreateTeamsClick}
-                  size="lg"
-                  className="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-3 text-lg"
-                  disabled={loading || rankedUsers.length < 3}
-                >
-                  <Users className="mr-2 h-5 w-5" />
-                  Create Teams
-                </Button>
-                {rankedUsers.length < 3 && !loading && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Need at least 3 players to create teams
-                  </p>
-                )}
-              </div>
-            )}
+          <div className="flex items-center gap-4">
+            <h1 className="font-headline text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+              Player Rankings
+            </h1>
+            <DownloadRatingsButton users={rankedUsers.map(({ user, userStatsData, stats }) => ({ ...user, ...userStatsData, ...stats }))} />
+          </div>
+          <p className="text-muted-foreground md:text-xl">
+            The top players in the CS2 community.
+          </p>
 
-            {isTeamSelectionMode && (
-              <div className="mt-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Select Players for Teams
-                    </CardTitle>
-                    <CardDescription>
-                      Choose at least 3 players to divide into balanced teams.
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-4">
-                    {/* Randomness Toggle */}
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="randomness-toggle"
-                        checked={useRandomness}
-                        onCheckedChange={setUseRandomness}
-                      />
-                      <label htmlFor="randomness-toggle" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
-                        <Shuffle className="h-4 w-4" />
-                        Add randomness for similar skill players
-                      </label>
-                    </div>
-                  </CardContent>
-                  
-                  <CardFooter className="flex gap-3">
-                    <Button 
-                      onClick={handleCancelSelection}
-                      variant="outline"
-                    >
-                      <X className="mr-2 h-4 w-4" />
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleDivideIntoTeams}
-                      disabled={!canDivideIntoTeams}
-                    >
-                      <Users className="mr-2 h-4 w-4" />
-                      Divide into Teams ({selectedPlayers.size} selected)
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-            )}
+          {!isTeamSelectionMode && (
+            <div className="mt-6">
+              <Button
+                onClick={handleCreateTeamsClick}
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-3 text-lg"
+                disabled={loading || rankedUsers.length < 3}
+              >
+                <Users className="mr-2 h-5 w-5" />
+                Create Teams
+              </Button>
+              {rankedUsers.length < 3 && !loading && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Need at least 3 players to create teams
+                </p>
+              )}
+            </div>
+          )}
+
+          {isTeamSelectionMode && (
+            <div className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Select Players for Teams
+                  </CardTitle>
+                  <CardDescription>
+                    Choose at least 3 players to divide into balanced teams.
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="randomness-toggle"
+                      checked={useRandomness}
+                      onCheckedChange={(checked) => setUseRandomness(checked === true)}
+                    />
+                    <label htmlFor="randomness-toggle" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
+                      <Shuffle className="h-4 w-4" />
+                      Add randomness for similar skill players
+                    </label>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="flex gap-3">
+                  <Button onClick={handleCancelSelection} variant="outline">
+                    <X className="mr-2 h-4 w-4" />
+                    Cancel
+                  </Button>
+                  <Button onClick={handleDivideIntoTeams} disabled={!canDivideIntoTeams}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Divide into Teams ({selectedPlayers.size} selected)
+                  </Button>
+                </CardFooter>
+              </Card>
+            </div>
+          )}
         </div>
 
         <div className="w-full max-w-4xl">
@@ -436,16 +442,17 @@ export default function Home() {
                   </TableRow>
                 )}
                 {!loading && rankedUsers.length === 0 && (
-                   <TableRow>
+                  <TableRow>
                     <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                       No players found. Add some in the admin dashboard!
                     </TableCell>
                   </TableRow>
                 )}
-                {!loading && rankedUsers.map(({ user, stats }) => (
-                  <StatsPopover 
-                    key={user.id} 
-                    user={user} 
+                {!loading && rankedUsers.map(({ user, userStatsData, stats }) => (
+                  <StatsPopover
+                    key={user.id}
+                    user={user}
+                    userStatsData={userStatsData}
                     stats={stats}
                     isSelectionMode={isTeamSelectionMode}
                     isSelected={selectedPlayers.has(user.id)}
@@ -461,7 +468,6 @@ export default function Home() {
         Built for the CS2 community.
       </footer>
 
-      {/* Team Results Dialog */}
       <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto custom-scrollbar [&>button]:right-2 [&>button]:top-2">
           <DialogHeader>
@@ -469,7 +475,7 @@ export default function Home() {
               <div>
                 <DialogTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  🎯 Teams Created!
+                  Teams Created!
                 </DialogTitle>
                 <DialogDescription>
                   Your balanced teams are ready. You can copy this text.
@@ -480,12 +486,10 @@ export default function Home() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    // Recalculate teams with randomness
-                    const selectedPlayersData = rankedUsers.filter(({ user }) => 
-                      selectedPlayers.has(user.id)
-                    );
-                    const newTeamDivision = divideIntoBalancedTeams(selectedPlayersData, 'random-weighted');
-                    setTeamResult(newTeamDivision);
+                    const selectedPlayersData = rankedUsers
+                      .filter(({ user }) => selectedPlayers.has(user.id))
+                      .map(({ user, stats }) => ({ user, stats }));
+                    setTeamResult(divideIntoBalancedTeams(selectedPlayersData, 'random-weighted'));
                   }}
                   className="flex items-center gap-1"
                 >
@@ -498,7 +502,6 @@ export default function Home() {
 
           {teamResult && (
             <div className="space-y-4">
-              {/* Team Alpha */}
               <Card className="border-l-4 border-l-blue-500">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
@@ -510,7 +513,7 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {teamResult.team1.players.map((player, index) => (
+                  {teamResult.team1.players.map((player) => (
                     <div key={player.id} className="flex justify-between items-center bg-muted rounded px-3 py-2">
                       <span className="font-bold">{player.name}</span>
                       <span className="text-sm font-mono font-bold bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -521,7 +524,6 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Team Beta */}
               <Card className="border-l-4 border-l-green-500">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
@@ -533,7 +535,7 @@ export default function Home() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {teamResult.team2.players.map((player, index) => (
+                  {teamResult.team2.players.map((player) => (
                     <div key={player.id} className="flex justify-between items-center bg-muted rounded px-3 py-2">
                       <span className="font-bold">{player.name}</span>
                       <span className="text-sm font-mono font-bold bg-green-100 text-green-800 px-2 py-1 rounded">
@@ -544,7 +546,6 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Balance Analysis */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
@@ -563,7 +564,6 @@ export default function Home() {
                 </CardContent>
               </Card>
 
-              {/* Copy Text Preview */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2">
