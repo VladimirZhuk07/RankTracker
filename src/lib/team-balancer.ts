@@ -418,6 +418,18 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
+ * Format a TeamDivisionResult as a plain-text string for sharing/copying
+ */
+export function formatTeamDivisionText(result: TeamDivisionResult): string {
+  const team1List = result.team1.players.map(p => `• ${p.name} (${p.rating.toFixed(2)})`).join('\n');
+  const team2List = result.team2.players.map(p => `• ${p.name} (${p.rating.toFixed(2)})`).join('\n');
+
+  return `${result.team1.name} (Avg: ${result.team1.averageRating.toFixed(2)}):\n${team1List}\n\n` +
+    `${result.team2.name} (Avg: ${result.team2.averageRating.toFixed(2)}):\n${team2List}\n\n` +
+    `${result.balanceAnalysis.explanation}`;
+}
+
+/**
  * Main function to divide teams using the best algorithm for the given scenario
  */
 export function divideIntoBalancedTeams(

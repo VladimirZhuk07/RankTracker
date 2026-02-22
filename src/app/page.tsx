@@ -9,13 +9,13 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
-import type { MatchRecord, User, UserStatsData } from '@/lib/storage/definitions';
+import type { User, UserStatsData } from '@/lib/storage/definitions';
 import { Header } from '@/components/Header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserIcon } from '@/components/UserIcon';
-import { calculateStats, type UserStats } from '@/lib/calculations';
+import type { UserStats } from '@/lib/calculations';
 import {
   Tooltip,
   TooltipContent,
@@ -29,11 +29,10 @@ import {
 } from '@/components/ui/popover';
 import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle } from 'lucide-react';
 import { DownloadRatingsButton } from '@/components/DownloadRatingsButton';
-import { useCollection } from '@/firebase';
-import { getUsersQuery, getMatchesQuery } from '@/lib/storage/queries';
 import { useFirebase } from '@/firebase';
-import { useMemo, useState } from 'react';
-import { divideIntoBalancedTeams, type TeamDivisionResult } from '@/lib/team-balancer';
+import { useState } from 'react';
+import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
+import { useRankedUsers } from '@/hooks/use-ranked-users';
 import {
   Dialog,
   DialogContent,
@@ -194,67 +193,15 @@ function StatsPopover({
   );
 }
 
-function aggregateMatchesToStats(matches: MatchRecord[]): UserStatsData {
-  return matches.reduce(
-    (acc, m) => ({
-      totalMaps: acc.totalMaps + 1,
-      totalKills: acc.totalKills + m.kills,
-      totalDeaths: acc.totalDeaths + m.deaths,
-      totalDamage: acc.totalDamage + m.damage,
-    }),
-    { totalMaps: 0, totalKills: 0, totalDeaths: 0, totalDamage: 0 }
-  );
-}
-
 export default function Home() {
   const { firestore } = useFirebase();
+  const { rankedUsers, loading } = useRankedUsers(firestore);
   const [isTeamSelectionMode, setIsTeamSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [useRandomness, setUseRandomness] = useState(false);
   const [teamResult, setTeamResult] = useState<TeamDivisionResult | null>(null);
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const usersQuery = useMemo(() => {
-    if (!firestore) return null;
-    return getUsersQuery(firestore);
-  }, [firestore]);
-
-  const matchesQuery = useMemo(() => {
-    if (!firestore) return null;
-    return getMatchesQuery(firestore);
-  }, [firestore]);
-
-  const { data: usersData, loading: usersLoading } = useCollection(usersQuery);
-  const { data: matchesData, loading: matchesLoading } = useCollection(matchesQuery);
-
-  const loading = usersLoading;
-
-  const rankedUsers = useMemo(() => {
-    if (!usersData) return [];
-
-    const users = usersData as User[];
-    const matches = (matchesData ?? []) as MatchRecord[];
-
-    const matchesByUserId = matches.reduce<Record<string, MatchRecord[]>>((acc, match) => {
-      if (!acc[match.userId]) acc[match.userId] = [];
-      acc[match.userId].push(match);
-      return acc;
-    }, {});
-
-    return users
-      .map((user) => {
-        const userMatches = matchesByUserId[user.id] ?? [];
-        const userStatsData = aggregateMatchesToStats(userMatches);
-        const stats = calculateStats(userStatsData);
-        return { user, userStatsData, stats };
-      })
-      .sort((a, b) => b.stats.rating - a.stats.rating || a.user.name.localeCompare(b.user.name))
-      .map((data, index) => ({
-        ...data,
-        stats: { ...data.stats, rank: index + 1 },
-      }));
-  }, [usersData, matchesData]);
 
   const handleCreateTeamsClick = () => {
     setIsTeamSelectionMode(true);
@@ -287,24 +234,15 @@ export default function Home() {
     setShowTeamDialog(true);
   };
 
-  const generateTeamText = (result: TeamDivisionResult) => {
-    const team1List = result.team1.players.map(p => `• ${p.name} (${p.rating.toFixed(2)})`).join('\n');
-    const team2List = result.team2.players.map(p => `• ${p.name} (${p.rating.toFixed(2)})`).join('\n');
-
-    return `${result.team1.name} (Avg: ${result.team1.averageRating.toFixed(2)}):\n${team1List}\n\n` +
-      `${result.team2.name} (Avg: ${result.team2.averageRating.toFixed(2)}):\n${team2List}\n\n` +
-      `${result.balanceAnalysis.explanation}`;
-  };
-
   const handleCopyTeams = async () => {
     if (!teamResult) return;
     try {
-      await navigator.clipboard.writeText(generateTeamText(teamResult));
+      await navigator.clipboard.writeText(formatTeamDivisionText(teamResult));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       const textArea = document.createElement('textarea');
-      textArea.value = generateTeamText(teamResult);
+      textArea.value = formatTeamDivisionText(teamResult);
       document.body.appendChild(textArea);
       textArea.select();
       document.execCommand('copy');
@@ -576,7 +514,7 @@ export default function Home() {
                 </CardHeader>
                 <CardContent>
                   <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono bg-muted rounded p-3 max-h-32 overflow-y-auto custom-scrollbar">
-                    {generateTeamText(teamResult)}
+                    {formatTeamDivisionText(teamResult)}
                   </pre>
                 </CardContent>
               </Card>
