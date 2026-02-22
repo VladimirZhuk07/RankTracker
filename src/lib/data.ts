@@ -1,7 +1,7 @@
 'use server';
 
 import type { User, UserStatsData } from './definitions';
-import { getFirestore, collection, getDocs, doc, getDoc, addDoc, query, where, updateDoc, writeBatch, deleteDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, addDoc, query, where, updateDoc, deleteDoc } from 'firebase/firestore';
 
 async function getFirestoreInstance() {
   const { initializeFirebase } = await import('@/firebase/server');
@@ -9,47 +9,10 @@ async function getFirestoreInstance() {
   return firestore;
 }
 
-export async function seedInitialData() {
-  const firestore = await getFirestoreInstance();
-  const usersCollection = collection(firestore, 'users');
-  const snapshot = await getDocs(usersCollection);
-
-  if (snapshot.empty) {
-    console.log('No users found in Firestore. Seeding initial data...');
-    const initialUsers = [
-        { id: '1', name: 'PlayerOne', totalMaps: 10, totalKills: 150, totalDeaths: 120, totalDamage: 18000, avatarUrl: '' },
-        { id: '2', name: 'S1mple', totalMaps: 25, totalKills: 550, totalDeaths: 400, totalDamage: 52000, avatarUrl: '' },
-        { id: '3', name: 'ZywOo', totalMaps: 22, totalKills: 510, totalDeaths: 380, totalDamage: 48000, avatarUrl: '' },
-        { id: '4', name: 'dev1ce', totalMaps: 30, totalKills: 600, totalDeaths: 450, totalDamage: 55000, avatarUrl: '' },
-        { id: '5', name: 'NiKo', totalMaps: 28, totalKills: 580, totalDeaths: 480, totalDamage: 56000, avatarUrl: '' },
-    ];
-    const batch = writeBatch(firestore);
-    initialUsers.forEach(user => {
-      const docRef = doc(usersCollection); // Let Firestore generate the ID
-      batch.set(docRef, {
-          name: user.name,
-          totalMaps: user.totalMaps,
-          totalKills: user.totalKills,
-          totalDeaths: user.totalDeaths,
-          totalDamage: user.totalDamage,
-          avatarUrl: user.avatarUrl
-      });
-    });
-    await batch.commit();
-    console.log('Initial data seeded successfully.');
-  }
-}
-
-
 export async function getUsers(): Promise<User[]> {
   const firestore = await getFirestoreInstance();
   const usersCollection = collection(firestore, 'users');
   const snapshot = await getDocs(usersCollection);
-  if (snapshot.empty) {
-    await seedInitialData();
-    const seededSnapshot = await getDocs(usersCollection);
-    return seededSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-  }
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 }
 
