@@ -153,6 +153,13 @@ export async function updateSessionFields(
   if (Object.keys(update).length > 0) {
     await updateDoc(sessionDocRef, update);
   }
+  if (fields.date !== undefined) {
+    const newDate = Timestamp.fromDate(new Date(fields.date));
+    const matchesCollection = getMatchesCollection(firestore);
+    const q = query(matchesCollection, where('sessionId', '==', sessionId));
+    const snapshot = await getDocs(q);
+    await Promise.all(snapshot.docs.map(d => updateDoc(d.ref, { date: newDate })));
+  }
 }
 
 // Match record functions
