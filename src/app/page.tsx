@@ -30,7 +30,7 @@ import {
 import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle } from 'lucide-react';
 import { DownloadRatingsButton } from '@/components/DownloadRatingsButton';
 import { useCollection } from '@/firebase';
-import { collection, query, orderBy, getFirestore } from 'firebase/firestore';
+import { getUsersQuery } from '@/lib/storage/queries';
 import { useFirebase } from '@/firebase';
 import { useMemo, useState } from 'react';
 import { divideIntoBalancedTeams, type TeamDivisionResult } from '@/lib/team-balancer';
@@ -207,7 +207,7 @@ export default function Home() {
 
   const usersQuery = useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'users'));
+    return getUsersQuery(firestore);
   }, [firestore]);
 
   const { data: users, loading } = useCollection(usersQuery);

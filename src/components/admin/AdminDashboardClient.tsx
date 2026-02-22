@@ -66,7 +66,7 @@ import { UserIcon } from '@/components/UserIcon';
 import { calculateStats } from '@/lib/calculations';
 import { useFirebase } from '@/firebase';
 import { useCollection } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { getUsersQuery } from '@/lib/storage/queries';
 import { Textarea } from '../ui/textarea';
 
 
@@ -160,7 +160,7 @@ export function AdminDashboardClient() {
 
   const usersQuery = React.useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'users'));
+    return getUsersQuery(firestore);
   }, [firestore]);
 
   const { data: users, loading } = useCollection(usersQuery);
