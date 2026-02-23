@@ -28,7 +28,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle } from 'lucide-react';
-import { DownloadRatingsButton } from '@/components/DownloadRatingsButton';
 import { useFirebase } from '@/firebase';
 import { useState } from 'react';
 import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
@@ -267,12 +266,9 @@ export default function Home() {
       <Header />
       <main className="flex flex-1 flex-col items-center gap-4 p-4 md:gap-8 md:p-8">
         <div className="text-center w-full max-w-4xl flex flex-col items-center">
-          <div className="flex items-center gap-4">
-            <h1 className="font-headline text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-              Player Rankings
-            </h1>
-            <DownloadRatingsButton users={rankedUsers.map(({ user, userStatsData, stats }) => ({ ...user, ...userStatsData, ...stats }))} />
-          </div>
+          <h1 className="font-headline text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+            Player Rankings
+          </h1>
           <p className="text-muted-foreground md:text-xl">
             The top players in the CS2 community.
           </p>
