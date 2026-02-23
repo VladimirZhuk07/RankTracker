@@ -17,7 +17,7 @@ function toDate(timestamp: Timestamp): Date {
   return timestamp.toDate();
 }
 
-export function useRankedUsers(firestore: Firestore | null): { rankedUsers: RankedUser[]; loading: boolean } {
+export function useRankedUsers(firestore: Firestore | null): { rankedUsers: RankedUser[]; matches: MatchRecord[]; loading: boolean } {
   const usersQuery = useMemo(() => {
     if (!firestore) return null;
     return getUsersQuery(firestore);
@@ -67,5 +67,7 @@ export function useRankedUsers(firestore: Firestore | null): { rankedUsers: Rank
       }));
   }, [usersData, matchesData]);
 
-  return { rankedUsers, loading };
+  const matches = useMemo(() => (matchesData ?? []) as MatchRecord[], [matchesData]);
+
+  return { rankedUsers, matches, loading };
 }

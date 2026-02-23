@@ -9,7 +9,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
-import type { User, UserStatsData } from '@/lib/storage/definitions';
+import type { MatchRecord, SessionRecord, User, UserStatsData } from '@/lib/storage/definitions';
+import { CS2_MAPS } from '@/lib/storage/definitions';
 import { Header } from '@/components/Header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,9 +28,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle } from 'lucide-react';
-import { useFirebase } from '@/firebase';
-import { useState } from 'react';
+import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle, History } from 'lucide-react';
+import { useFirebase, useCollection } from '@/firebase';
+import { getSessionsQuery } from '@/lib/storage/queries';
+import { useState, useMemo } from 'react';
 import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
 import { useRankedUsers } from '@/hooks/use-ranked-users';
 import {
@@ -49,6 +51,80 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
+function formatMatchDate(timestamp: MatchRecord['date']): string {
+  return timestamp.toDate().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function MatchHistoryDialog({
+  open,
+  onOpenChange,
+  user,
+  userMatches,
+  sessionsById,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: User;
+  userMatches: MatchRecord[];
+  sessionsById: Record<string, SessionRecord>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md max-h-[80vh] flex flex-col [&>button]:right-2 [&>button]:top-2">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-4 w-4" />
+            {user.name}
+          </DialogTitle>
+          <DialogDescription>
+            {userMatches.length} {userMatches.length === 1 ? 'match' : 'matches'} played
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-y-auto flex-1 -mx-1 px-1">
+          {userMatches.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">No matches recorded yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs py-2">Date</TableHead>
+                  <TableHead className="text-xs py-2">Map</TableHead>
+                  <TableHead className="text-xs py-2 text-center">K</TableHead>
+                  <TableHead className="text-xs py-2 text-center">D</TableHead>
+                  <TableHead className="text-xs py-2 text-center">Dmg</TableHead>
+                  <TableHead className="text-xs py-2 text-center">W/L</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {userMatches.map((match) => {
+                  const mapName = CS2_MAPS[sessionsById[match.sessionId]?.mapIndex] ?? '—';
+                  return (
+                    <TableRow key={match.id} className="text-sm">
+                      <TableCell className="py-1.5 text-muted-foreground whitespace-nowrap">{formatMatchDate(match.date)}</TableCell>
+                      <TableCell className="py-1.5">{mapName}</TableCell>
+                      <TableCell className="py-1.5 text-center font-mono">{match.kills}</TableCell>
+                      <TableCell className="py-1.5 text-center font-mono">{match.deaths}</TableCell>
+                      <TableCell className="py-1.5 text-center font-mono">{match.damage}</TableCell>
+                      <TableCell className="py-1.5 text-center">
+                        <Badge
+                          variant="outline"
+                          className={match.won ? 'text-green-700 border-green-400 bg-green-50' : 'text-red-700 border-red-400 bg-red-50'}
+                        >
+                          {match.won ? 'W' : 'L'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function getRankColor(rank: number) {
   if (rank === 1) return 'bg-yellow-500/80 text-yellow-950 border-yellow-500';
   if (rank === 2) return 'bg-gray-400/80 text-gray-950 border-gray-400';
@@ -60,6 +136,8 @@ function StatsPopover({
   user,
   userStatsData,
   stats,
+  userMatches,
+  sessionsById,
   isSelectionMode,
   isSelected,
   onSelectionChange,
@@ -67,10 +145,14 @@ function StatsPopover({
   user: User;
   userStatsData: UserStatsData;
   stats: UserStats;
+  userMatches: MatchRecord[];
+  sessionsById: Record<string, SessionRecord>;
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onSelectionChange?: (userId: string, selected: boolean) => void;
 }) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   const handleSelectionChange = (checked: boolean) => {
     if (onSelectionChange) {
       onSelectionChange(user.id, checked);
@@ -128,73 +210,115 @@ function StatsPopover({
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <TableRow className="cursor-pointer">
-          {tableRowContent}
-        </TableRow>
-      </PopoverTrigger>
-      <PopoverContent className="w-80">
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <h4 className="font-medium leading-none">{user.name} - Stats</h4>
-            <p className="text-sm text-muted-foreground">
-              Detailed performance metrics.
-            </p>
+    <>
+      <Popover>
+        <PopoverTrigger asChild>
+          <TableRow className="cursor-pointer">
+            {tableRowContent}
+          </TableRow>
+        </PopoverTrigger>
+        <PopoverContent className="w-80">
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <h4 className="font-medium leading-none">{user.name} - Stats</h4>
+              <p className="text-sm text-muted-foreground">
+                Detailed performance metrics.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center space-x-2">
+                <BarChart className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">K/D Ratio</p>
+                  <p className="text-lg font-bold">{stats.kdRatio.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Target className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">ADR</p>
+                  <p className="text-lg font-bold">{stats.averageDamage.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Crosshair className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Kills</p>
+                  <p className="text-lg font-bold">{userStatsData.totalKills}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Skull className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Deaths</p>
+                  <p className="text-lg font-bold">{userStatsData.totalDeaths}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Dices className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Maps</p>
+                  <p className="text-lg font-bold">{userStatsData.totalMaps}</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Info className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">Damage</p>
+                  <p className="text-lg font-bold">{userStatsData.totalDamage}</p>
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setHistoryOpen(true)}
+            >
+              <History className="mr-2 h-4 w-4" />
+              Match History
+            </Button>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center space-x-2">
-              <BarChart className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">K/D Ratio</p>
-                <p className="text-lg font-bold">{stats.kdRatio.toFixed(2)}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Target className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">ADR</p>
-                <p className="text-lg font-bold">{stats.averageDamage.toFixed(2)}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Crosshair className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Kills</p>
-                <p className="text-lg font-bold">{userStatsData.totalKills}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Skull className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Deaths</p>
-                <p className="text-lg font-bold">{userStatsData.totalDeaths}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Dices className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Maps</p>
-                <p className="text-lg font-bold">{userStatsData.totalMaps}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Info className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Damage</p>
-                <p className="text-lg font-bold">{userStatsData.totalDamage}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+      <MatchHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        user={user}
+        userMatches={userMatches}
+        sessionsById={sessionsById}
+      />
+    </>
   );
 }
 
 export default function Home() {
   const { firestore } = useFirebase();
-  const { rankedUsers, loading } = useRankedUsers(firestore);
+  const { rankedUsers, matches, loading } = useRankedUsers(firestore);
+
+  const sessionsQuery = useMemo(() => {
+    if (!firestore) return null;
+    return getSessionsQuery(firestore);
+  }, [firestore]);
+
+  const { data: sessionsData } = useCollection(sessionsQuery);
+
+  const sessionsById = useMemo(() => {
+    const sessions = (sessionsData ?? []) as SessionRecord[];
+    return sessions.reduce<Record<string, SessionRecord>>((acc, s) => {
+      acc[s.id] = s;
+      return acc;
+    }, {});
+  }, [sessionsData]);
+
+  const matchesByUserId = useMemo(
+    () => matches.reduce<Record<string, MatchRecord[]>>((acc, match) => {
+      if (!acc[match.userId]) acc[match.userId] = [];
+      acc[match.userId].push(match);
+      return acc;
+    }, {}),
+    [matches]
+  );
   const [isTeamSelectionMode, setIsTeamSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [useRandomness, setUseRandomness] = useState(false);
@@ -389,6 +513,8 @@ export default function Home() {
                     user={user}
                     userStatsData={userStatsData}
                     stats={stats}
+                    userMatches={matchesByUserId[user.id] ?? []}
+                    sessionsById={sessionsById}
                     isSelectionMode={isTeamSelectionMode}
                     isSelected={selectedPlayers.has(user.id)}
                     onSelectionChange={handlePlayerSelectionChange}
@@ -400,7 +526,7 @@ export default function Home() {
         </div>
       </main>
       <footer className="py-6 text-center text-sm text-muted-foreground">
-        Built for the CS2 community.
+        <p>&copy; {new Date().getFullYear()} RankTracker. Built for the CS2 community.</p>
       </footer>
 
       <Dialog open={showTeamDialog} onOpenChange={setShowTeamDialog}>
