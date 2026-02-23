@@ -359,7 +359,8 @@ export default function Home() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="font-mono text-xs">
-                              Rating = K/D Ratio * 2 + ADR / 100
+                              Rating (0–100) = win/loss-adjusted K/D &amp; damage,
+                              normalized to a skill ceiling, with an inactivity penalty
                             </p>
                           </TooltipContent>
                         </Tooltip>

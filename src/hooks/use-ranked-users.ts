@@ -1,17 +1,21 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Firestore } from 'firebase/firestore';
-import type { MatchRecord, User } from '@/lib/storage/definitions';
-import { aggregateMatchesToStats, calculateStats, type UserStats } from '@/lib/calculations';
+import type { Firestore, Timestamp } from 'firebase/firestore';
+import type { MatchRecord, User, UserStatsData } from '@/lib/storage/definitions';
+import { aggregateMatchesToStats, aggregateMatchesWeighted, calculateStats, type UserStats } from '@/lib/calculations';
 import { getUsersQuery, getMatchesQuery } from '@/lib/storage/queries';
 import { useCollection } from '@/firebase';
 
 export type RankedUser = {
   user: User;
-  userStatsData: ReturnType<typeof aggregateMatchesToStats>;
+  userStatsData: UserStatsData;
   stats: UserStats;
 };
+
+function toDate(timestamp: Timestamp): Date {
+  return timestamp.toDate();
+}
 
 export function useRankedUsers(firestore: Firestore | null): { rankedUsers: RankedUser[]; loading: boolean } {
   const usersQuery = useMemo(() => {
@@ -39,11 +43,21 @@ export function useRankedUsers(firestore: Firestore | null): { rankedUsers: Rank
       return acc;
     }, {});
 
+    const referenceDate = matches.length > 0
+      ? new Date(Math.max(...matches.map((m) => toDate(m.date).getTime())))
+      : new Date();
+
     return users
       .map((user) => {
         const userMatches = matchesByUserId[user.id] ?? [];
         const userStatsData = aggregateMatchesToStats(userMatches);
-        const stats = calculateStats(userStatsData);
+        const weightedStats = aggregateMatchesWeighted(userMatches);
+
+        const playerLastMatchDate = userMatches.length > 0
+          ? new Date(Math.max(...userMatches.map((m) => toDate(m.date).getTime())))
+          : referenceDate;
+
+        const stats = calculateStats(weightedStats, referenceDate, playerLastMatchDate);
         return { user, userStatsData, stats };
       })
       .sort((a, b) => b.stats.rating - a.stats.rating || a.user.name.localeCompare(b.user.name))
