@@ -82,7 +82,7 @@ function MatchHistoryDialog({
             {userMatches.length} {userMatches.length === 1 ? 'match' : 'matches'} played
           </DialogDescription>
         </DialogHeader>
-        <div className="overflow-y-auto flex-1 -mx-1 px-1">
+        <div className="overflow-y-auto flex-1 -mx-1 px-1 custom-scrollbar">
           {userMatches.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">No matches recorded yet.</p>
           ) : (
