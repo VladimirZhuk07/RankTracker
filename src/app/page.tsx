@@ -61,12 +61,14 @@ function MatchHistoryDialog({
   user,
   userMatches,
   sessionsById,
+  neutralSessionIds,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: User;
   userMatches: MatchRecord[];
   sessionsById: Record<string, SessionRecord>;
+  neutralSessionIds: Set<string>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,12 +94,13 @@ function MatchHistoryDialog({
                   <TableHead className="text-xs py-2 text-center">K</TableHead>
                   <TableHead className="text-xs py-2 text-center">D</TableHead>
                   <TableHead className="text-xs py-2 text-center">Dmg</TableHead>
-                  <TableHead className="text-xs py-2 text-center">W/L</TableHead>
+                  <TableHead className="text-xs py-2 text-center">Result</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {userMatches.map((match) => {
                   const mapName = CS2_MAPS[sessionsById[match.sessionId]?.mapIndex] ?? '—';
+                  const isNeutral = neutralSessionIds.has(match.sessionId);
                   return (
                     <TableRow key={match.id} className="text-sm">
                       <TableCell className="py-1.5 text-muted-foreground whitespace-nowrap">{formatMatchDate(match.date)}</TableCell>
@@ -108,9 +111,15 @@ function MatchHistoryDialog({
                       <TableCell className="py-1.5 text-center">
                         <Badge
                           variant="outline"
-                          className={match.won ? 'text-green-700 border-green-400 bg-green-50' : 'text-red-700 border-red-400 bg-red-50'}
+                          className={
+                            isNeutral
+                              ? 'text-blue-700 border-blue-400 bg-blue-50'
+                              : match.won
+                                ? 'text-green-700 border-green-400 bg-green-50'
+                                : 'text-red-700 border-red-400 bg-red-50'
+                          }
                         >
-                          {match.won ? 'W' : 'L'}
+                          {isNeutral ? 'N' : match.won ? 'W' : 'L'}
                         </Badge>
                       </TableCell>
                     </TableRow>
@@ -141,6 +150,7 @@ function StatsPopover({
   isSelectionMode,
   isSelected,
   onSelectionChange,
+  neutralSessionIds,
 }: {
   user: User;
   userStatsData: UserStatsData;
@@ -150,6 +160,7 @@ function StatsPopover({
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onSelectionChange?: (userId: string, selected: boolean) => void;
+  neutralSessionIds: Set<string>;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -287,6 +298,7 @@ function StatsPopover({
         user={user}
         userMatches={userMatches}
         sessionsById={sessionsById}
+        neutralSessionIds={neutralSessionIds}
       />
     </>
   );
@@ -319,6 +331,24 @@ export default function Home() {
     }, {}),
     [matches]
   );
+  const neutralSessionIds = useMemo(() => {
+    // Match the same neutral-session definition used for ratings:
+    // a session is neutral only if *all* matches in that session have won=false.
+    const neutralIds = matches.reduce<Set<string>>((acc, match) => {
+      if (match.sessionId && !acc.has(match.sessionId)) {
+        acc.add(match.sessionId);
+      }
+      return acc;
+    }, new Set<string>());
+
+    matches.forEach((match) => {
+      if (match.won && neutralIds.has(match.sessionId)) {
+        neutralIds.delete(match.sessionId);
+      }
+    });
+
+    return neutralIds;
+  }, [matches]);
   const [isTeamSelectionMode, setIsTeamSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [useRandomness, setUseRandomness] = useState(false);
@@ -479,8 +509,8 @@ export default function Home() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="font-mono text-xs">
-                              Rating (0–100) = win/loss-adjusted K/D &amp; damage,
-                              normalized to a skill ceiling, with an inactivity penalty
+                              Rating (0–100) = win/loss/neutral-adjusted K/D &amp; damage,
+                              normalized to a skill ceiling, with an inactivity penalty (draw sessions are neutral: no bonus or penalty)
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -518,6 +548,7 @@ export default function Home() {
                     isSelectionMode={isTeamSelectionMode}
                     isSelected={selectedPlayers.has(user.id)}
                     onSelectionChange={handlePlayerSelectionChange}
+                    neutralSessionIds={neutralSessionIds}
                   />
                 ))}
               </TableBody>

@@ -8,6 +8,7 @@
 - User Creation: Allow the admin to create new users via the admin panel.
 - Avatar Update: Enable the admin to update user avatars through the admin panel.
 - CSV Rating Upload: Functionality for the admin to upload a CSV file to update user ratings.
+- Ratings adjusted by match outcome (win, loss, neutral/draw), with draw sessions treated as neutral (no bonus, no penalty) as described in `RATING.md`.
 
 ## Style Guidelines:
 

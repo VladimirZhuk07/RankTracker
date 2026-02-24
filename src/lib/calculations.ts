@@ -46,10 +46,11 @@ export function aggregateMatchesToStats(matches: MatchRecord[]): UserStatsData {
   );
 }
 
-export function aggregateMatchesWeighted(matches: MatchRecord[]): WeightedStatsData {
+export function aggregateMatchesWeighted(matches: MatchRecord[], neutralSessionIds?: Set<string>): WeightedStatsData {
   return matches.reduce(
     (acc, m) => {
-      const modifier = calculateWinModifier(m.won);
+      const isNeutralSession = neutralSessionIds?.has(m.sessionId) ?? false;
+      const modifier = isNeutralSession ? 1 : calculateWinModifier(m.won);
       return {
         effectiveKills: acc.effectiveKills + m.kills * modifier,
         effectiveDeaths: acc.effectiveDeaths + m.deaths,

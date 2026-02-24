@@ -742,6 +742,11 @@ function tsToDateInput(ts: any): string {
   return date.toLocaleDateString('en-CA'); // YYYY-MM-DD
 }
 
+/** Normalize Firestore/storage won field to boolean so Switch and neutral logic are consistent. */
+function normalizeWon(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1;
+}
+
 function MatchHistoryTable({
   matches,
   usersById,
@@ -762,17 +767,39 @@ function MatchHistoryTable({
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [savingSessionIds, setSavingSessionIds] = useState<Set<string>>(new Set());
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()));
+  const [neutralSessionIds, setNeutralSessionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    // Match the same neutral-session logic used on the public leaderboard:
+    // a session is neutral only if *all* its matches have won=false.
+    const neutralIds = matches.reduce<Set<string>>((acc, match) => {
+      if (match.sessionId && !acc.has(match.sessionId)) {
+        acc.add(match.sessionId);
+      }
+      return acc;
+    }, new Set<string>());
+
+    matches.forEach((match) => {
+      if (match.won && neutralIds.has(match.sessionId)) {
+        neutralIds.delete(match.sessionId);
+      }
+    });
+
+    setNeutralSessionIds(neutralIds);
+
     setRows(
-      matches.map((m) => ({
-        ...m,
-        isEditing: false,
-        editKills: m.kills,
-        editDeaths: m.deaths,
-        editDamage: m.damage,
-        editWon: m.won,
-      }))
+      matches.map((m) => {
+        const won = normalizeWon(m.won);
+        return {
+          ...m,
+          won,
+          isEditing: false,
+          editKills: m.kills,
+          editDeaths: m.deaths,
+          editDamage: m.damage,
+          editWon: won,
+        };
+      })
     );
   }, [matches]);
 
@@ -1092,13 +1119,27 @@ function MatchHistoryTable({
                       <TableCell>
                         {row.isEditing ? (
                           <Switch
-                            checked={row.editWon}
+                            checked={row.editWon === true}
                             onCheckedChange={(checked) => updateWon(row.id, checked)}
                           />
                         ) : (
-                          <span className={row.won ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
-                            {row.won ? 'W' : 'L'}
-                          </span>
+                          (() => {
+                            const neutralKey = row.sessionId ?? row.id;
+                            const isNeutral = neutralSessionIds.has(neutralKey);
+                            return (
+                              <span
+                                className={
+                                  isNeutral
+                                    ? 'text-blue-600 font-medium'
+                                    : row.won
+                                      ? 'text-green-600 font-medium'
+                                      : 'text-muted-foreground'
+                                }
+                              >
+                                {isNeutral ? 'N' : row.won ? 'W' : 'L'}
+                              </span>
+                            );
+                          })()
                         )}
                       </TableCell>
                       <TableCell className="text-right space-x-2">

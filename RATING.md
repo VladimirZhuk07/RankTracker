@@ -10,21 +10,29 @@ All logic lives in [`src/lib/calculations.ts`](src/lib/calculations.ts) and
 
 Each player's rating is a number on a **0–100 scale**. It reflects three things:
 
-1. **Per-game performance** — kills, deaths, and damage, adjusted for win/loss outcome.
+1. **Per-game performance** — kills, deaths, and damage, adjusted for win/loss/neutral outcome.
 2. **Normalization** — scores are scaled against a fixed theoretical ceiling so the number is immediately meaningful.
 3. **Activity penalty** — players who have not played recently are penalized relative to the most recently active player.
 
 ---
 
-## Step 1 — Win/Loss Modifier
+## Step 1 — Win/Loss/Neutral Modifier
 
 Every match has a modifier applied to kills and damage (but **not** deaths — dying is equally costly regardless of the match outcome):
 
 ```
-modifier = won ? 1.2 : 0.8
+if sessionHasWinner:
+  modifier = won ? 1.2 : 0.8
+else:
+  modifier = 1.0
 ```
 
-Winning boosts a player's kill and damage contributions by 20%. Losing reduces them by 20%.
+- **Win** (W): boosts a player's kill and damage contributions by 20%.
+- **Loss** (L): reduces a player's kill and damage contributions by 20%.
+- **Neutral/Draw** (N): applies no bonus and no penalty.
+
+A session is considered **neutral** when no player in that session has `won = true` (typically equal rounds per team so there is no winner). In a neutral session, all players receive `modifier = 1.0`.
+
 Deaths are never modified — accumulating deaths in a loss is not forgiven.
 
 ---
@@ -137,7 +145,10 @@ finalRating = normalizedRating × activityWeight
 ## Complete Formula
 
 ```
-modifier        = won ? 1.2 : 0.8                          (per match)
+if sessionHasWinner:
+  modifier = won ? 1.2 : 0.8
+else:
+  modifier = 1.0                                         (neutral session: no bonus/penalty)
 
 effectiveKills  = Σ kills  × modifier
 effectiveDeaths = Σ deaths

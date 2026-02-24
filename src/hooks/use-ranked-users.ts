@@ -37,6 +37,19 @@ export function useRankedUsers(firestore: Firestore | null): { rankedUsers: Rank
     const users = usersData as User[];
     const matches = (matchesData ?? []) as MatchRecord[];
 
+    const neutralSessionIds = matches.reduce<Set<string>>((acc, match) => {
+      if (!acc.has(match.sessionId)) {
+        acc.add(match.sessionId);
+      }
+      return acc;
+    }, new Set<string>());
+
+    matches.forEach((match) => {
+      if (match.won && neutralSessionIds.has(match.sessionId)) {
+        neutralSessionIds.delete(match.sessionId);
+      }
+    });
+
     const matchesByUserId = matches.reduce<Record<string, MatchRecord[]>>((acc, match) => {
       if (!acc[match.userId]) acc[match.userId] = [];
       acc[match.userId].push(match);
@@ -51,7 +64,7 @@ export function useRankedUsers(firestore: Firestore | null): { rankedUsers: Rank
       .map((user) => {
         const userMatches = matchesByUserId[user.id] ?? [];
         const userStatsData = aggregateMatchesToStats(userMatches);
-        const weightedStats = aggregateMatchesWeighted(userMatches);
+        const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds);
 
         const playerLastMatchDate = userMatches.length > 0
           ? new Date(Math.max(...userMatches.map((m) => toDate(m.date).getTime())))
