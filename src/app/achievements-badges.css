@@ -1,0 +1,15 @@
+/* Achievement badges strip: row of icons, compact layout */
+.achievementsBadges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.achievementsBadges--top {
+  align-self: flex-start;
+}
+
+.achievementsBadges--bottom {
+  align-self: flex-end;
+}

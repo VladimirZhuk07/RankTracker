@@ -34,6 +34,8 @@ import { getSessionsQuery } from '@/lib/storage/queries';
 import { useState, useMemo } from 'react';
 import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
 import { useRankedUsers } from '@/hooks/use-ranked-users';
+import { calculateUserAchievements, type AchievementResult } from '@/lib/achievements';
+import { UserAchievementBadges } from '@/components/achievements/UserAchievementBadges';
 import {
   Dialog,
   DialogContent,
@@ -147,6 +149,7 @@ function StatsPopover({
   stats,
   userMatches,
   sessionsById,
+  achievements,
   isSelectionMode,
   isSelected,
   onSelectionChange,
@@ -157,6 +160,7 @@ function StatsPopover({
   stats: UserStats;
   userMatches: MatchRecord[];
   sessionsById: Record<string, SessionRecord>;
+  achievements: AchievementResult[];
   isSelectionMode?: boolean;
   isSelected?: boolean;
   onSelectionChange?: (userId: string, selected: boolean) => void;
@@ -203,11 +207,17 @@ function StatsPopover({
               </div>
             )}
           </Avatar>
-          <span className="font-medium">{user.name}</span>
+          <span className="font-medium min-w-0 flex-1">{user.name}</span>
         </div>
       </TableCell>
-      <TableCell className="text-right font-mono text-lg">
-        {stats.rating.toFixed(2)}
+      <TableCell className="text-right">
+        <div className="flex items-center justify-end gap-2">
+          <UserAchievementBadges
+            achievements={achievements}
+            containerClassName="achievementsBadges"
+          />
+          <span className="font-mono text-lg">{stats.rating.toFixed(2)}</span>
+        </div>
       </TableCell>
     </>
   );
@@ -352,6 +362,14 @@ export default function Home() {
 
     return neutralIds;
   }, [matches]);
+
+  const achievementsByUserId = useMemo(() => {
+    const byUserId: Record<string, AchievementResult[]> = {};
+    for (const userId of Object.keys(matchesByUserId)) {
+      byUserId[userId] = calculateUserAchievements(matchesByUserId[userId], sessionsById);
+    }
+    return byUserId;
+  }, [matchesByUserId, sessionsById]);
   const [isTeamSelectionMode, setIsTeamSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [useRandomness, setUseRandomness] = useState(false);
@@ -548,6 +566,7 @@ export default function Home() {
                     stats={stats}
                     userMatches={matchesByUserId[user.id] ?? []}
                     sessionsById={sessionsById}
+                    achievements={achievementsByUserId[user.id] ?? []}
                     isSelectionMode={isTeamSelectionMode}
                     isSelected={selectedPlayers.has(user.id)}
                     onSelectionChange={handlePlayerSelectionChange}

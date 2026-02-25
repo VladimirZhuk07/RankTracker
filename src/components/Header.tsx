@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { Logo } from './Logo';
-import { Shield } from 'lucide-react';
+import { Shield, Trophy } from 'lucide-react';
 
 export function Header() {
   return (
@@ -16,6 +16,12 @@ export function Header() {
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
+            <Button asChild variant="ghost">
+                <Link href="/achievements">
+                    <Trophy className="mr-2 h-4 w-4" />
+                    Achievements
+                </Link>
+            </Button>
             <Button asChild variant="ghost">
                 <Link href="/admin/login">
                     <Shield className="mr-2 h-4 w-4" />
