@@ -196,7 +196,7 @@ function StatsPopover({
           </Badge>
         </TableCell>
       )}
-      <TableCell>
+      <TableCell className="max-w-[230px]">
         <div className="flex items-center gap-3">
           <Avatar>
             {user.avatarUrl ? (
@@ -207,10 +207,10 @@ function StatsPopover({
               </div>
             )}
           </Avatar>
-          <span className="font-medium min-w-0 flex-1">{user.name}</span>
+          <span className="font-medium min-w-0 flex-1 truncate">{user.name}</span>
         </div>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right min-w-[100px] shrink-0">
         <div className="flex items-center justify-end gap-2">
           <UserAchievementBadges
             achievements={achievements}
@@ -509,8 +509,8 @@ export default function Home() {
           )}
         </div>
 
-        <div className="w-full max-w-4xl">
-          <div className="rounded-lg border shadow-sm">
+        <div className="w-full max-w-4xl overflow-x-auto">
+          <div className="rounded-lg border shadow-sm min-w-[320px]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -519,8 +519,8 @@ export default function Home() {
                   ) : (
                     <TableHead className="w-16 text-center">Rank</TableHead>
                   )}
-                  <TableHead>Player</TableHead>
-                  <TableHead className="text-right">
+                  <TableHead className="max-w-[230px]">Player</TableHead>
+                  <TableHead className="text-right min-w-[100px]">
                     <div className="flex items-center justify-end gap-2">
                       <span>Rating</span>
                       <TooltipProvider>
