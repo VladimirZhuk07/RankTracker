@@ -164,6 +164,9 @@ function StatsPopover({
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
 
+  const hasDeaths = userStatsData.totalDeaths > 0;
+  const rawKdRatio = hasDeaths ? userStatsData.totalKills / userStatsData.totalDeaths : userStatsData.totalKills;
+
   const handleSelectionChange = (checked: boolean) => {
     if (onSelectionChange) {
       onSelectionChange(user.id, checked);
@@ -241,7 +244,7 @@ function StatsPopover({
                 <BarChart className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm font-medium">K/D Ratio</p>
-                  <p className="text-lg font-bold">{stats.kdRatio.toFixed(2)}</p>
+                  <p className="text-lg font-bold">{rawKdRatio.toFixed(2)}</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
