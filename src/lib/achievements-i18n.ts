@@ -101,15 +101,9 @@ export const PAGE_TITLE = {
   ru: 'Достижения',
 } as const;
 
-export const PAGE_DESCRIPTION = {
-  en: 'All possible achievements you can earn. Descriptions are shown in your browser language (English or Russian for Belarus/Russia).',
-  ru: 'Все возможные достижения. Описания отображаются на языке браузера (английский или русский для Беларуси/России).',
-} as const;
-
-export function getPageText(locale: string): { title: string; description: string } {
+export function getPageText(locale: string): { title: string } {
   const useRu = isRussianLocale(locale);
   return {
     title: useRu ? PAGE_TITLE.ru : PAGE_TITLE.en,
-    description: useRu ? PAGE_DESCRIPTION.ru : PAGE_DESCRIPTION.en,
   };
 }

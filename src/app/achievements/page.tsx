@@ -7,7 +7,7 @@ import {
   getPageText,
   type AchievementInfo,
 } from '@/lib/achievements-i18n';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const POPOVER_ICON_SIZE = 120;
 
@@ -62,7 +62,6 @@ export default function AchievementsPage() {
       <Card>
         <CardHeader>
           <CardTitle>{pageText.title}</CardTitle>
-          <CardDescription>{pageText.description}</CardDescription>
         </CardHeader>
         <CardContent>
           <ul className="divide-y-0">
