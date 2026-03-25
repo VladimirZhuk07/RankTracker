@@ -93,8 +93,12 @@ function MatchHistoryDialog({
                 <TableRow>
                   <TableHead className="text-xs py-2">Date</TableHead>
                   <TableHead className="text-xs py-2">Map</TableHead>
-                  <TableHead className="text-xs py-2 text-center">K</TableHead>
-                  <TableHead className="text-xs py-2 text-center">D</TableHead>
+                  <TableHead className="w-10 max-w-10 px-1 text-xs py-2 text-center tabular-nums">
+                    K
+                  </TableHead>
+                  <TableHead className="w-10 max-w-10 px-1 text-xs py-2 text-center tabular-nums">
+                    D
+                  </TableHead>
                   <TableHead className="text-xs py-2 text-center">Dmg</TableHead>
                   <TableHead className="text-xs py-2 text-center">Result</TableHead>
                 </TableRow>
@@ -103,12 +107,24 @@ function MatchHistoryDialog({
                 {userMatches.map((match) => {
                   const mapName = CS2_MAPS[sessionsById[match.sessionId]?.mapIndex] ?? '—';
                   const isNeutral = neutralSessionIds.has(match.sessionId);
+                  const kills = Math.round(match.kills);
+                  const deaths = Math.round(match.deaths);
                   return (
                     <TableRow key={match.id} className="text-sm">
                       <TableCell className="py-1.5 text-muted-foreground whitespace-nowrap">{formatMatchDate(match.date)}</TableCell>
                       <TableCell className="py-1.5">{mapName}</TableCell>
-                      <TableCell className="py-1.5 text-center font-mono">{match.kills}</TableCell>
-                      <TableCell className="py-1.5 text-center font-mono">{match.deaths}</TableCell>
+                      <TableCell
+                        className="w-10 max-w-10 px-1 py-1.5 text-center font-mono text-sm tabular-nums"
+                        title={String(match.kills)}
+                      >
+                        {kills}
+                      </TableCell>
+                      <TableCell
+                        className="w-10 max-w-10 px-1 py-1.5 text-center font-mono text-sm tabular-nums"
+                        title={String(match.deaths)}
+                      >
+                        {deaths}
+                      </TableCell>
                       <TableCell className="py-1.5 text-center font-mono">{match.damage}</TableCell>
                       <TableCell className="py-1.5 text-center">
                         <Badge
@@ -180,25 +196,25 @@ function StatsPopover({
   const tableRowContent = (
     <>
       {isSelectionMode ? (
-        <TableCell className="w-[56px] py-4 pl-4 pr-[11px] text-center" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="w-[56px] py-4 pl-2 pr-2 text-center md:pl-4 md:pr-[11px]" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={isSelected}
             onCheckedChange={handleSelectionChange}
           />
         </TableCell>
       ) : (
-        <TableCell className="w-[56px] py-4 pl-4 pr-[11px] text-center">
+        <TableCell className="w-[56px] py-4 pl-2 pr-2 text-center md:pl-4 md:pr-[11px]">
           <Badge
             variant="outline"
-            className={`text-lg font-bold ${getRankColor(stats.rank)}`}
+            className={`text-base font-bold md:text-lg ${getRankColor(stats.rank)}`}
           >
             {stats.rank}
           </Badge>
         </TableCell>
       )}
-      <TableCell className="max-w-[230px]">
-        <div className="flex items-center gap-3">
-          <Avatar>
+      <TableCell className="min-w-0 py-4 pl-2 pr-2 md:max-w-[230px] md:pl-4 md:pr-4">
+        <div className="flex min-w-0 items-center gap-2 md:gap-3">
+          <Avatar className="h-8 w-8 md:h-10 md:w-10">
             {user.avatarUrl ? (
               <AvatarImage src={user.avatarUrl} alt={user.name} />
             ) : (
@@ -210,13 +226,12 @@ function StatsPopover({
           <span className="font-medium min-w-0 flex-1 truncate">{user.name}</span>
         </div>
       </TableCell>
-      <TableCell className="text-right min-w-[100px] shrink-0">
-        <div className="flex items-center justify-end gap-2">
-          <UserAchievementBadges
-            achievements={achievements}
-            containerClassName="achievementsBadges"
-          />
-          <span className="font-mono text-lg">{stats.rating.toFixed(2)}</span>
+      <TableCell className="max-md:w-[92px] max-md:max-w-[92px] shrink-0 py-3 pl-1 pr-1.5 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:py-4 md:pl-4 md:pr-4">
+        <div className="flex items-center justify-end gap-0.5 whitespace-nowrap md:gap-2">
+          <UserAchievementBadges achievements={achievements} />
+          <span className="font-mono text-sm tabular-nums leading-none md:text-base md:text-lg">
+            {stats.rating.toFixed(2)}
+          </span>
         </div>
       </TableCell>
     </>
@@ -510,27 +525,29 @@ export default function Home() {
         </div>
 
         <div className="w-full max-w-4xl overflow-x-auto">
-          <div className="rounded-lg border shadow-sm min-w-[320px]">
-            <Table>
+          <div className="w-full min-w-0 rounded-lg border shadow-sm md:min-w-[320px]">
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
                   {isTeamSelectionMode ? (
-                    <TableHead className="w-[56px] text-center pl-4 pr-[11px]">
+                    <TableHead className="w-[56px] text-center pl-2 pr-2 md:pl-4 md:pr-[11px]">
                       Select
                     </TableHead>
                   ) : (
-                    <TableHead className="w-[56px] text-center pl-4 pr-[11px]">
+                    <TableHead className="w-[56px] text-center pl-2 pr-2 md:pl-4 md:pr-[11px]">
                       Rank
                     </TableHead>
                   )}
-                  <TableHead className="max-w-[230px]">Player</TableHead>
-                  <TableHead className="text-right min-w-[100px]">
-                    <div className="flex items-center justify-end gap-2">
-                      <span>Rating</span>
+                  <TableHead className="min-w-0 pl-2 pr-2 md:max-w-[230px] md:pl-4 md:pr-4">
+                    Player
+                  </TableHead>
+                  <TableHead className="max-md:w-[92px] max-md:max-w-[92px] pl-1 pr-1.5 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
+                    <div className="flex items-center justify-end gap-0.5 whitespace-nowrap md:gap-2">
+                      <span className="text-xs md:text-sm">Rating</span>
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger>
-                            <Info className="h-4 w-4 text-muted-foreground" />
+                            <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground md:h-4 md:w-4" />
                           </TooltipTrigger>
                           <TooltipContent>
                             <p className="font-mono text-xs">

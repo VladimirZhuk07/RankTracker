@@ -52,11 +52,11 @@ export function UserAchievementBadges({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 md:h-8 md:w-8"
             aria-label="View all achievements"
             onClick={(e) => e.stopPropagation()}
           >
-            <Trophy className="h-4 w-4" />
+            <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4" />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-80 max-h-[70vh] overflow-y-auto" align="end">
