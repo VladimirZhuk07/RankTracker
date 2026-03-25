@@ -44,8 +44,19 @@ export function calculateUserAchievements(
 
   const winsByMap = new Array<number>(CS2_MAPS.length).fill(0);
   const lossesByMap = new Array<number>(CS2_MAPS.length).fill(0);
+  let berserkerQualifyingWins = 0;
 
   for (const match of userMatches) {
+    // "Berserker" achievement is based on per-match performance:
+    // won && kills>=25 && K/D>=1.5 (treat deaths=0 as infinite K/D).
+    if (
+      match.won &&
+      match.kills >= 25 &&
+      (match.deaths === 0 || match.kills / match.deaths >= 1.5)
+    ) {
+      berserkerQualifyingWins += 1;
+    }
+
     const mapIndex = getMapIndex(match, sessionsById);
     if (mapIndex == null || mapIndex < 0 || mapIndex >= CS2_MAPS.length) continue;
 
@@ -107,6 +118,15 @@ export function calculateUserAchievements(
       name: 'Anti-map',
       description: `Most losses on\n${mapName}`,
       iconPath: 'anti-map.svg',
+    });
+  }
+
+  if (berserkerQualifyingWins >= 5) {
+    results.push({
+      id: 'berserker',
+      name: 'Berserker',
+      description: `5+ won games where each match has\n25+ kills and K/D >= 1.5.`,
+      iconPath: 'berserker.svg',
     });
   }
 

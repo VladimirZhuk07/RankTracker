@@ -79,6 +79,14 @@ export const ALL_ACHIEVEMENTS_INFO: AchievementInfo[] = [
     descriptionEn: 'Awarded for the map where you have the most losses.',
     descriptionRu: 'Выдаётся за карту, на которой у вас больше всего поражений.',
   },
+  {
+    id: 'berserker',
+    iconPath: 'berserker.svg',
+    nameEn: 'Berserker',
+    nameRu: 'Берсеркер',
+    descriptionEn: '5+ won games where each match has\n25+ kills and K/D >= 1.5.',
+    descriptionRu: '5+ побед, где в каждом матче:\n25+ убийств и K/D >= 1.5.',
+  },
 ];
 
 /**
