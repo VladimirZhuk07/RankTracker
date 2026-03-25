@@ -180,14 +180,14 @@ function StatsPopover({
   const tableRowContent = (
     <>
       {isSelectionMode ? (
-        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+        <TableCell className="w-[56px] py-4 pl-4 pr-[11px] text-center" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={isSelected}
             onCheckedChange={handleSelectionChange}
           />
         </TableCell>
       ) : (
-        <TableCell className="text-center">
+        <TableCell className="w-[56px] py-4 pl-4 pr-[11px] text-center">
           <Badge
             variant="outline"
             className={`text-lg font-bold ${getRankColor(stats.rank)}`}
@@ -515,9 +515,13 @@ export default function Home() {
               <TableHeader>
                 <TableRow>
                   {isTeamSelectionMode ? (
-                    <TableHead className="w-16 text-center">Select</TableHead>
+                    <TableHead className="w-[56px] text-center pl-4 pr-[11px]">
+                      Select
+                    </TableHead>
                   ) : (
-                    <TableHead className="w-16 text-center">Rank</TableHead>
+                    <TableHead className="w-[56px] text-center pl-4 pr-[11px]">
+                      Rank
+                    </TableHead>
                   )}
                   <TableHead className="max-w-[230px]">Player</TableHead>
                   <TableHead className="text-right min-w-[100px]">

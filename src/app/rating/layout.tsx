@@ -17,17 +17,17 @@ export default function RatingLayout({
 }) {
   return (
     <div className="flex min-h-screen w-full flex-col">
-      <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-6">
-        <nav className="flex flex-col gap-6 text-lg font-medium md:flex-row md:items-center md:gap-5 md:text-sm lg:gap-6">
+      <header className="sticky top-0 z-50 flex min-h-14 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b bg-background px-4 py-2 md:min-h-16 md:px-6 md:py-0">
+        <nav className="flex min-w-0 flex-1 items-center text-lg font-medium md:flex-none md:text-sm">
           <Link
             href="/"
-            className="flex items-center gap-2 text-lg font-semibold md:text-base font-headline"
+            className="flex min-w-0 items-center gap-2 text-lg font-semibold md:text-base font-headline"
           >
             <Logo />
             <span className="hidden sm:inline-block">CS2 Rank Tracker</span>
           </Link>
         </nav>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full flex-shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
           <Button asChild variant="outline">
             <Link href="/achievements" className="flex items-center gap-2">
               <Trophy className="h-4 w-4" />
