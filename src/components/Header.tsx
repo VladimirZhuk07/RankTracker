@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Button } from './ui/button';
 import { Logo } from './Logo';
-import { Shield, Trophy } from 'lucide-react';
+import { Calculator, Shield, Trophy } from 'lucide-react';
 
 export function Header() {
   return (
@@ -20,6 +20,12 @@ export function Header() {
                 <Link href="/achievements">
                     <Trophy className="mr-2 h-4 w-4" />
                     Achievements
+                </Link>
+            </Button>
+            <Button asChild variant="ghost">
+                <Link href="/rating">
+                    <Calculator className="mr-2 h-4 w-4" />
+                    Rating rules
                 </Link>
             </Button>
             <Button asChild variant="ghost">

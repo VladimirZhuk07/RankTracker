@@ -22,13 +22,13 @@ Every match has a modifier applied to kills and damage (but **not** deaths — d
 
 ```
 if sessionHasWinner:
-  modifier = won ? 1.2 : 0.8
+  modifier = won ? 1.1 : 0.9
 else:
   modifier = 1.0
 ```
 
-- **Win** (W): boosts a player's kill and damage contributions by 20%.
-- **Loss** (L): reduces a player's kill and damage contributions by 20%.
+- **Win** (W): boosts a player's kill and damage contributions by 10%.
+- **Loss** (L): reduces a player's kill and damage contributions by 10%.
 - **Neutral/Draw** (N): applies no bonus and no penalty.
 
 A session is considered **neutral** when no player in that session has `won = true` (typically equal rounds per team so there is no winner). In a neutral session, all players receive `modifier = 1.0`.
@@ -75,9 +75,9 @@ K/D is weighted twice as heavily as damage per map (scaled by 1/100).
 normalizedRating = (rawRating / MAX_RAW_RATING) × 100
 ```
 
-### Why MAX_RAW_RATING = 54?
+### Why MAX_RAW_RATING = 52.43?
 
-54 was chosen to accommodate realistic high-performance play. The ceiling is defined by
+52.43 was chosen to accommodate realistic high-performance play. The ceiling is defined by
 an exceptional theoretical player profile:
 
 | Parameter | Value |
@@ -90,15 +90,15 @@ an exceptional theoretical player profile:
 Working through the math:
 
 ```
-avgModifier        = 0.6 × 1.2 + 0.4 × 0.8 = 1.04   (average win/loss modifier across all matches)
+avgModifier        = 0.6 × 1.1 + 0.4 × 0.9 = 1.02   (average win/loss modifier across all matches)
 
-effectiveKdRatio   = 3.2 × 1.04 = 3.328              (kills boosted by modifier, deaths unmodified)
-effectiveAvgDamage = 4,500 × 1.04 = 4,680            (damage boosted by modifier per map)
+effectiveKdRatio   = 3.2 × 1.02 = 3.264              (kills boosted by modifier, deaths unmodified)
+effectiveAvgDamage = 4,500 × 1.02 = 4,590            (damage boosted by modifier per map)
 
-rawRating = 3.328 × 2 + 4,680 / 100 = 6.656 + 46.8 = 53.456 ≈ 54
+rawRating = 3.264 × 2 + 4,590 / 100 = 6.528 + 45.9 = 52.428 ≈ 52.43
 ```
 
-The `× 1.04` applied to K/D and damage reflects the win modifier effect: wins boost kills and damage by 1.2, losses reduce them by 0.8, and at a 60% win rate those average out to a 1.04 multiplier. The raw stats of the ceiling player are **K/D 3.2:1** and **4,500 damage/map** — these become 3.328 and 4,680 after the modifier is applied.
+The `× 1.02` applied to K/D and damage reflects the win modifier effect: wins boost kills and damage by 1.1, losses reduce them by 0.9, and at a 60% win rate those average out to a 1.02 multiplier. The raw stats of the ceiling player are **K/D 3.2:1** and **4,500 damage/map** — these become 3.264 and 4,590 after the modifier is applied.
 
 4,500 average damage per map represents an exceptional, rarely achieved level of play —
 comfortably above what most strong players produce (typically 2,000–3,500/map), which
@@ -146,7 +146,7 @@ finalRating = normalizedRating × activityWeight
 
 ```
 if sessionHasWinner:
-  modifier = won ? 1.2 : 0.8
+  modifier = won ? 1.1 : 0.9
 else:
   modifier = 1.0                                         (neutral session: no bonus/penalty)
 
@@ -157,7 +157,7 @@ effectiveDamage = Σ damage × modifier
 kdRatio         = effectiveKills / effectiveDeaths
 averageDamage   = effectiveDamage / totalMaps
 rawRating       = kdRatio × 2 + averageDamage / 100
-normalizedRating = (rawRating / 54) × 100
+normalizedRating = (rawRating / 52.43) × 100
 
 referenceDate   = max match date across all players
 activityWeight  = clamp(1 − daysSinceLastPlay / 365, 0, 1)

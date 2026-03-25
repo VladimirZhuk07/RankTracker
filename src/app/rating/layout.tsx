@@ -1,9 +1,16 @@
 import { Button } from '@/components/ui/button';
 import { Logo } from '@/components/Logo';
 import Link from 'next/link';
-import { ArrowLeft, Calculator } from 'lucide-react';
+import { ArrowLeft, Trophy } from 'lucide-react';
+import type { Metadata } from 'next';
 
-export default function AchievementsLayout({
+export const metadata: Metadata = {
+  title: 'Rating rules — CS2 Rank Tracker',
+  description:
+    'How player ratings are calculated: win/loss modifiers, K/D, damage, normalization, and activity.',
+};
+
+export default function RatingLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -22,9 +29,9 @@ export default function AchievementsLayout({
         </nav>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           <Button asChild variant="outline">
-            <Link href="/rating" className="flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              Rating rules
+            <Link href="/achievements" className="flex items-center gap-2">
+              <Trophy className="h-4 w-4" />
+              Achievements
             </Link>
           </Button>
           <Button asChild variant="outline">

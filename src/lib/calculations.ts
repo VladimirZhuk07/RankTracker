@@ -15,17 +15,17 @@ export type WeightedStatsData = {
 };
 
 /**
- * MAX_RAW_RATING = 54 is back-calculated from a theoretical ceiling player:
+ * MAX_RAW_RATING is back-calculated from a theoretical ceiling player:
  * 312 games/year (6 maps/week), 60% win rate, K/D 3.2:1, avg damage 4,500/map.
- * avgModifier = 0.6×1.2 + 0.4×0.8 = 1.04
- * kdRatio     = 3.2 × 1.04 = 3.328
- * avgDamage   = 4,500 × 1.04 = 4,680/map
- * rawRating   = 3.328×2 + 4,680/100 = 6.656 + 46.8 = 53.456 ≈ 54
+ * avgModifier = 0.6×1.1 + 0.4×0.9 = 1.02
+ * kdRatio     = 3.2 × 1.02 = 3.264
+ * avgDamage   = 4,500 × 1.02 = 4,590/map
+ * rawRating   = 3.264×2 + 4,590/100 = 6.528 + 45.9 = 52.428 ≈ 52.43
  */
-export const MAX_RAW_RATING = 54;
+export const MAX_RAW_RATING = 52.43;
 
 export function calculateWinModifier(won: boolean): number {
-  return won ? 1.2 : 0.8;
+  return won ? 1.1 : 0.9;
 }
 
 export function calculateActivityWeight(playerLastMatchDate: Date, referenceDate: Date): number {
