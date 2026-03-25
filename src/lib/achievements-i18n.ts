@@ -17,6 +17,7 @@ const MAP_NAMES_EN: Record<string, string> = {
   Inferno: 'Inferno',
   Mirage: 'Mirage',
   Nuke: 'Nuke',
+  Overpass: 'Overpass',
 };
 
 const MAP_NAMES_RU: Record<string, string> = {
@@ -26,6 +27,7 @@ const MAP_NAMES_RU: Record<string, string> = {
   Inferno: 'Inferno',
   Mirage: 'Mirage',
   Nuke: 'Nuke',
+  Overpass: 'Overpass',
 };
 
 const MAP_ACHIEVEMENT_NAMES_EN: Record<string, string> = {
@@ -35,6 +37,7 @@ const MAP_ACHIEVEMENT_NAMES_EN: Record<string, string> = {
   Inferno: 'King of Inferno',
   Mirage: 'Emperor of Mirage',
   Nuke: 'Nuke Engineer',
+  Overpass: 'President of Overpass',
 };
 
 const MAP_ACHIEVEMENT_NAMES_RU: Record<string, string> = {
@@ -44,6 +47,7 @@ const MAP_ACHIEVEMENT_NAMES_RU: Record<string, string> = {
   Inferno: 'Король Inferno',
   Mirage: 'Император Mirage',
   Nuke: 'Инженер Nuke',
+  Overpass: 'Президент Overpass',
 };
 
 function buildMapAchievements(): AchievementInfo[] {

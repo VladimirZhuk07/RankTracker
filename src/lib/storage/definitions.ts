@@ -7,6 +7,7 @@ export const CS2_MAPS = [
   'Inferno',
   'Mirage',
   'Nuke',
+  'Overpass',
 ] as const;
 
 export type UserStatsData = {

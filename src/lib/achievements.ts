@@ -16,6 +16,7 @@ export const MAP_INDEX_TO_ICON: readonly string[] = [
   'inferno-king.svg',
   'mirage_emperor.svg',
   'nuke-engineer.svg',
+  'overpass-president.svg',
 ] as const;
 
 const WINS_THRESHOLD = 10;
@@ -120,6 +121,7 @@ function getMapAchievementName(mapName: string): string {
     Inferno: 'King of Inferno',
     Mirage: 'Emperor of Mirage',
     Nuke: 'Nuke Engineer',
+    Overpass: 'President of Overpass',
   };
   return names[mapName] ?? mapName;
 }
