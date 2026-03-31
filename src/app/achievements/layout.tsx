@@ -35,7 +35,9 @@ export default function AchievementsLayout({
           </Button>
         </div>
       </header>
-      <main className="flex-1 p-4 sm:px-6 sm:py-0 md:gap-8">{children}</main>
+      <main className="flex w-full flex-1 flex-col items-center p-4 sm:px-6 sm:py-0 md:gap-8">
+        {children}
+      </main>
     </div>
   );
 }

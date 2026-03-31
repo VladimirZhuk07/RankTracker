@@ -61,7 +61,7 @@ finalRating = normalizedRating × activityWeight`,
   );
 
   return (
-    <div className="container max-w-3xl py-6">
+    <div className="container w-full max-w-3xl py-6">
       <div className="mb-6 space-y-2">
         <h1 className="font-headline text-2xl font-bold tracking-tight sm:text-3xl">{t.heroTitle}</h1>
         <p className="text-muted-foreground">

@@ -58,7 +58,7 @@ export default function AchievementsPage() {
   const pageText = useMemo(() => getPageText(locale), [locale]);
 
   return (
-    <div className="container max-w-2xl py-6">
+    <div className="container w-full max-w-2xl py-6">
       <Card>
         <CardHeader>
           <CardTitle>{pageText.title}</CardTitle>

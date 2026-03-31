@@ -226,7 +226,7 @@ function StatsPopover({
           <span className="font-medium min-w-0 flex-1 truncate">{user.name}</span>
         </div>
       </TableCell>
-      <TableCell className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] shrink-0 py-2 pl-1 pr-1 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:py-4 md:pl-4 md:pr-4">
+      <TableCell className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] shrink-0 py-2 pl-1 max-md:pr-2 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:py-4 md:pl-4 md:pr-4">
         <div className="flex items-start justify-end gap-0.5 md:items-center md:gap-2">
           <UserAchievementBadges achievements={achievements} />
           <div className="flex min-w-0 flex-col items-end gap-0 leading-none">
@@ -564,7 +564,7 @@ export default function Home() {
                   <TableHead className="min-w-0 pl-2 pr-2 md:max-w-[230px] md:pl-4 md:pr-4">
                     Player
                   </TableHead>
-                  <TableHead className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] pl-1 pr-1 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
+                  <TableHead className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] pl-1 max-md:pr-2 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
                     <span className="text-xs md:text-sm">Rating</span>
                   </TableHead>
                 </TableRow>
