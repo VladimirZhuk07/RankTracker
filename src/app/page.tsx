@@ -34,6 +34,10 @@ import { getSessionsQuery } from '@/lib/storage/queries';
 import { useState, useMemo } from 'react';
 import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
 import { useRankedUsers } from '@/hooks/use-ranked-users';
+import {
+  formatRatingDeltaDisplay,
+  getRatingDeltaLastTwoPlayingDays,
+} from '@/lib/rating-delta';
 import { calculateUserAchievements, type AchievementResult } from '@/lib/achievements';
 import { UserAchievementBadges } from '@/components/achievements/UserAchievementBadges';
 import {
@@ -170,6 +174,7 @@ function StatsPopover({
   isSelected,
   onSelectionChange,
   neutralSessionIds,
+  ratingDeltaDisplay,
 }: {
   user: User;
   userStatsData: UserStatsData;
@@ -181,6 +186,7 @@ function StatsPopover({
   isSelected?: boolean;
   onSelectionChange?: (userId: string, selected: boolean) => void;
   neutralSessionIds: Set<string>;
+  ratingDeltaDisplay: string | null;
 }) {
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -226,12 +232,26 @@ function StatsPopover({
           <span className="font-medium min-w-0 flex-1 truncate">{user.name}</span>
         </div>
       </TableCell>
-      <TableCell className="max-md:w-[92px] max-md:max-w-[92px] shrink-0 py-3 pl-1 pr-1.5 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:py-4 md:pl-4 md:pr-4">
-        <div className="flex items-center justify-end gap-0.5 whitespace-nowrap md:gap-2">
+      <TableCell className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] shrink-0 py-2 pl-1 pr-1 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:py-4 md:pl-4 md:pr-4">
+        <div className="flex items-start justify-end gap-0.5 md:items-center md:gap-2">
           <UserAchievementBadges achievements={achievements} />
-          <span className="font-mono text-sm tabular-nums leading-none md:text-base md:text-lg">
-            {stats.rating.toFixed(2)}
-          </span>
+          <div className="flex min-w-0 flex-col items-end gap-0 leading-none">
+            <span className="font-mono text-xs tabular-nums md:text-base md:text-lg">
+              {stats.rating.toFixed(2)}
+            </span>
+            {ratingDeltaDisplay != null ? (
+              <span
+                aria-label={`Rating change since previous playing day: ${ratingDeltaDisplay}`}
+                className={`mt-px text-[9px] font-mono tabular-nums md:text-xs md:leading-none ${
+                  ratingDeltaDisplay.startsWith('+')
+                    ? 'text-emerald-600 dark:text-emerald-500'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                {ratingDeltaDisplay}
+              </span>
+            ) : null}
+          </div>
         </div>
       </TableCell>
     </>
@@ -377,6 +397,15 @@ export default function Home() {
 
     return neutralIds;
   }, [matches]);
+
+  const ratingDeltaDisplayByUserId = useMemo(() => {
+    const result: Record<string, string | null> = {};
+    for (const { user } of rankedUsers) {
+      const delta = getRatingDeltaLastTwoPlayingDays(matches, neutralSessionIds, user.id);
+      result[user.id] = delta === null ? null : formatRatingDeltaDisplay(delta);
+    }
+    return result;
+  }, [rankedUsers, matches, neutralSessionIds]);
 
   const achievementsByUserId = useMemo(() => {
     const byUserId: Record<string, AchievementResult[]> = {};
@@ -541,7 +570,7 @@ export default function Home() {
                   <TableHead className="min-w-0 pl-2 pr-2 md:max-w-[230px] md:pl-4 md:pr-4">
                     Player
                   </TableHead>
-                  <TableHead className="max-md:w-[92px] max-md:max-w-[92px] pl-1 pr-1.5 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
+                  <TableHead className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] pl-1 pr-1 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
                     <div className="flex items-center justify-end gap-0.5 whitespace-nowrap md:gap-2">
                       <span className="text-xs md:text-sm">Rating</span>
                       <TooltipProvider>
@@ -592,6 +621,7 @@ export default function Home() {
                     isSelected={selectedPlayers.has(user.id)}
                     onSelectionChange={handlePlayerSelectionChange}
                     neutralSessionIds={neutralSessionIds}
+                    ratingDeltaDisplay={ratingDeltaDisplayByUserId[user.id] ?? null}
                   />
                 ))}
               </TableBody>
