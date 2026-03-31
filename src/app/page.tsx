@@ -18,12 +18,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { UserIcon } from '@/components/UserIcon';
 import type { UserStats } from '@/lib/calculations';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -571,22 +565,7 @@ export default function Home() {
                     Player
                   </TableHead>
                   <TableHead className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] pl-1 pr-1 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
-                    <div className="flex items-center justify-end gap-0.5 whitespace-nowrap md:gap-2">
-                      <span className="text-xs md:text-sm">Rating</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="h-3.5 w-3.5 shrink-0 text-muted-foreground md:h-4 md:w-4" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p className="font-mono text-xs">
-                              Rating (0–100) = win/loss/neutral-adjusted K/D &amp; damage,
-                              normalized to a skill ceiling, with an inactivity penalty (draw sessions are neutral: no bonus or penalty)
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+                    <span className="text-xs md:text-sm">Rating</span>
                   </TableHead>
                 </TableRow>
               </TableHeader>
