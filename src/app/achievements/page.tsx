@@ -8,6 +8,7 @@ import {
   type AchievementInfo,
 } from '@/lib/achievements-i18n';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AchievementIconPreview } from '@/components/achievements/AchievementIconPreview';
 
 const POPOVER_ICON_SIZE = 120;
 
@@ -24,18 +25,13 @@ function AchievementRow({
   );
   return (
     <li className="flex items-center gap-4 border-b border-border/40 py-4 last:border-0">
-      <div
-        className="flex shrink-0 items-center justify-center"
-        style={{ width: POPOVER_ICON_SIZE, height: POPOVER_ICON_SIZE }}
-      >
-        <img
-          src={`/achievements/${achievement.iconPath}`}
-          alt={name}
-          width={POPOVER_ICON_SIZE}
-          height={POPOVER_ICON_SIZE}
-          className="rounded object-contain"
-        />
-      </div>
+      <AchievementIconPreview
+        iconPath={achievement.iconPath}
+        name={name}
+        description={description}
+        size={POPOVER_ICON_SIZE}
+        imageClassName="rounded"
+      />
       <div className="min-w-0 flex-1 space-y-1">
         <p className="font-medium">{name}</p>
         <p className="text-sm text-muted-foreground whitespace-pre-line">

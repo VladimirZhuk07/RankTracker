@@ -8,30 +8,10 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { Trophy } from 'lucide-react';
+import { AchievementIconPreview } from '@/components/achievements/AchievementIconPreview';
 
 const AVATAR_SIZE = 40;
 const POPOVER_ICON_SIZE = AVATAR_SIZE * 3;
-
-function AchievementIcon({
-  achievement,
-  size,
-  className,
-}: {
-  achievement: AchievementResult;
-  size: number;
-  className?: string;
-}) {
-  const src = `/achievements/${achievement.iconPath}`;
-  return (
-    <img
-      src={src}
-      alt={achievement.name}
-      width={size}
-      height={size}
-      className={cn('rounded object-contain shrink-0', className)}
-    />
-  );
-}
 
 export function UserAchievementBadges({
   achievements,
@@ -65,12 +45,13 @@ export function UserAchievementBadges({
             <ul className="space-y-3">
               {achievements.map((a) => (
                 <li key={a.id} className="flex items-center gap-3">
-                  <div
-                    className="flex shrink-0 items-center justify-center"
-                    style={{ width: POPOVER_ICON_SIZE, height: POPOVER_ICON_SIZE }}
-                  >
-                    <AchievementIcon achievement={a} size={POPOVER_ICON_SIZE} className="rounded" />
-                  </div>
+                  <AchievementIconPreview
+                    iconPath={a.iconPath}
+                    name={a.name}
+                    description={a.description}
+                    size={POPOVER_ICON_SIZE}
+                    imageClassName="rounded"
+                  />
                   <div className="min-w-0 space-y-0.5 flex-1">
                     <p className="font-medium text-sm">{a.name}</p>
                     <p className="text-xs text-muted-foreground whitespace-pre-line">{a.description}</p>
