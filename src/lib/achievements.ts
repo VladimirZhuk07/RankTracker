@@ -1,5 +1,11 @@
 import type { MatchRecord, SessionRecord } from './storage/definitions';
 import { CS2_MAPS } from './storage/definitions';
+import {
+  ALL_ACHIEVEMENTS_INFO,
+  getAchievementText,
+  isValidAchievementId,
+  MAP_INDEX_TO_ICON,
+} from './achievements-i18n';
 
 export type AchievementResult = {
   id: string;
@@ -8,16 +14,7 @@ export type AchievementResult = {
   iconPath: string;
 };
 
-/** Map index (0..5) to achievement icon filename for "10 wins on map" badges. */
-export const MAP_INDEX_TO_ICON: readonly string[] = [
-  'ancient-guardian.svg',
-  'anubis-pharaoh.svg',
-  'sultan-dust-2.svg',
-  'inferno-king.svg',
-  'mirage_emperor.svg',
-  'nuke-engineer.svg',
-  'overpass-president.svg',
-] as const;
+export { MAP_INDEX_TO_ICON } from './achievements-i18n';
 
 const WINS_THRESHOLD = 10;
 
@@ -131,6 +128,45 @@ export function calculateUserAchievements(
   }
 
   return results;
+}
+
+const achievementInfoById = new Map(ALL_ACHIEVEMENTS_INFO.map((a) => [a.id, a]));
+
+export function manualAchievementResultsFromIds(
+  ids: string[] | undefined,
+  locale = 'en'
+): AchievementResult[] {
+  if (!ids?.length) return [];
+
+  const results: AchievementResult[] = [];
+  for (const id of ids) {
+    if (!isValidAchievementId(id)) continue;
+    const info = achievementInfoById.get(id);
+    if (!info) continue;
+    const { name, description } = getAchievementText(info, locale);
+    results.push({
+      id: info.id,
+      name,
+      description,
+      iconPath: info.iconPath,
+    });
+  }
+  return results;
+}
+
+export function mergeUserAchievements(
+  computed: AchievementResult[],
+  manualIds: string[] | undefined,
+  locale = 'en'
+): AchievementResult[] {
+  const manual = manualAchievementResultsFromIds(manualIds, locale);
+  const byId = new Map(computed.map((a) => [a.id, a]));
+  for (const a of manual) {
+    if (!byId.has(a.id)) {
+      byId.set(a.id, a);
+    }
+  }
+  return Array.from(byId.values());
 }
 
 function getMapAchievementName(mapName: string): string {

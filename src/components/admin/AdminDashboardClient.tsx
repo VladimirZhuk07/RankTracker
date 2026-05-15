@@ -79,6 +79,7 @@ import { useFirebase } from '@/firebase';
 import { useCollection } from '@/firebase';
 import { getUsersQuery, getMatchesQuery, getSessionsQuery } from '@/lib/storage/queries';
 import { Textarea } from '../ui/textarea';
+import { MANUAL_ASSIGNABLE_ACHIEVEMENTS } from '@/lib/achievements-i18n';
 
 const initialCreateUserState = {
   message: '',
@@ -692,6 +693,37 @@ function EditUserDialog({ user }: { user: User }) {
                 <Input id="avatar" name="avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
               </div>
             </div>
+            {MANUAL_ASSIGNABLE_ACHIEVEMENTS.length > 0 && (
+              <div className="space-y-2">
+                <Label>Manual achievements</Label>
+                <div className="space-y-2 rounded-md border p-3">
+                  {MANUAL_ASSIGNABLE_ACHIEVEMENTS.map((achievement) => (
+                    <label
+                      key={achievement.id}
+                      htmlFor={`manual-${achievement.id}-${user.id}`}
+                      className="flex cursor-pointer items-center gap-3"
+                    >
+                      <input
+                        type="checkbox"
+                        id={`manual-${achievement.id}-${user.id}`}
+                        name="manualAchievementIds"
+                        value={achievement.id}
+                        defaultChecked={user.manualAchievementIds?.includes(achievement.id)}
+                        className="h-4 w-4 shrink-0 rounded border border-primary"
+                      />
+                      <img
+                        src={`/achievements/${achievement.iconPath}`}
+                        alt=""
+                        width={32}
+                        height={32}
+                        className="h-8 w-8 shrink-0 rounded object-contain"
+                      />
+                      <span className="text-sm">{achievement.nameEn}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
             <input type="hidden" name="userId" value={user.id} />
           </div>
           <DialogFooter>

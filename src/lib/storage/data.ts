@@ -123,6 +123,17 @@ export async function updateUserName(id: string, name: string): Promise<User | n
   return updatedDoc.exists() ? { id: updatedDoc.id, ...updatedDoc.data() } as User : null;
 }
 
+export async function updateUserManualAchievements(
+  id: string,
+  manualAchievementIds: string[]
+): Promise<User | null> {
+  const firestore = await getFirestoreInstance();
+  const docRef = getUserDoc(firestore, id);
+  await updateDoc(docRef, { manualAchievementIds });
+  const updatedDoc = await getDoc(docRef);
+  return updatedDoc.exists() ? { id: updatedDoc.id, ...updatedDoc.data() } as User : null;
+}
+
 // Session functions
 
 export async function addSession(

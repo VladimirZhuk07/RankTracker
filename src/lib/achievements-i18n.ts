@@ -1,5 +1,15 @@
 import { CS2_MAPS } from './storage/definitions';
-import { MAP_INDEX_TO_ICON } from './achievements';
+
+/** Map index (0..6) to achievement icon filename for "10 wins on map" badges. */
+export const MAP_INDEX_TO_ICON: readonly string[] = [
+  'ancient-guardian.svg',
+  'anubis-pharaoh.svg',
+  'sultan-dust-2.svg',
+  'inferno-king.svg',
+  'mirage_emperor.svg',
+  'nuke-engineer.svg',
+  'overpass-president.svg',
+] as const;
 
 export type AchievementInfo = {
   id: string;
@@ -87,7 +97,28 @@ export const ALL_ACHIEVEMENTS_INFO: AchievementInfo[] = [
     descriptionEn: '5+ won games where each match has\n25+ kills and K/D >= 1.5.',
     descriptionRu: '5+ побед, где в каждом матче:\n25+ убийств и K/D >= 1.5.',
   },
+  {
+    id: 'hand_of_god',
+    iconPath: 'hand_of_god.svg',
+    nameEn: 'Hand of God',
+    nameRu: 'Рука Бога',
+    descriptionEn:
+      'Awarded by the community for clutch plays or a match-winning performance — assigned manually.',
+    descriptionRu:
+      'Выдаётся сообществом за клатчи или решающий вклад в победу — назначается вручную.',
+  },
 ];
+
+/** Achievements that can only be earned via admin assignment (not computed from stats). */
+export const MANUAL_ASSIGNABLE_ACHIEVEMENTS: AchievementInfo[] = ALL_ACHIEVEMENTS_INFO.filter(
+  (a) => a.id === 'hand_of_god'
+);
+
+const VALID_ACHIEVEMENT_IDS = new Set(ALL_ACHIEVEMENTS_INFO.map((a) => a.id));
+
+export function isValidAchievementId(id: string): boolean {
+  return VALID_ACHIEVEMENT_IDS.has(id);
+}
 
 /**
  * Returns true if the locale is Belarusian or Russian (use Russian translations).

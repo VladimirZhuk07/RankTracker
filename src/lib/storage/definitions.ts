@@ -21,6 +21,8 @@ export type User = {
   id: string;
   name: string;
   avatarUrl: string;
+  /** Community-assigned achievement ids (admin only). */
+  manualAchievementIds?: string[];
 };
 
 export type MatchRecord = {

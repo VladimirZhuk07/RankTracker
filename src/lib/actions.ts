@@ -8,6 +8,7 @@ import {
   addUser,
   updateUserAvatar,
   updateUserName,
+  updateUserManualAchievements,
   deleteUserById,
   getUserById,
   getUserByName,
@@ -20,6 +21,7 @@ import {
   deleteSessionWithMatches,
 } from './storage/data';
 import type { User, UserStatsData } from './storage/definitions';
+import { isValidAchievementId } from './achievements-i18n';
 import type { ParsedUserData } from '@/components/admin/CsvPreviewTable';
 import { processImageWithAI } from '@/lib/image-actions';
 
@@ -152,7 +154,15 @@ export async function updateUser(prevState: any, formData: FormData): Promise<Up
       }
     }
 
+    const rawManualIds = formData.getAll('manualAchievementIds').map((v) => String(v).trim());
+    const manualAchievementIds = [...new Set(rawManualIds.filter(isValidAchievementId))];
+    const userWithManualAchievements = await updateUserManualAchievements(userId, manualAchievementIds);
+    if (userWithManualAchievements) {
+      updatedUser = { ...updatedUser, ...userWithManualAchievements };
+    }
+
     revalidatePath('/');
+    revalidatePath('/achievements');
     revalidatePath('/admin/dashboard');
     return { success: true, message: 'User updated.', user: updatedUser };
   } catch (error) {

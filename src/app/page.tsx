@@ -32,7 +32,11 @@ import {
   formatRatingDeltaDisplay,
   getRatingDeltaLastTwoPlayingDays,
 } from '@/lib/rating-delta';
-import { calculateUserAchievements, type AchievementResult } from '@/lib/achievements';
+import {
+  calculateUserAchievements,
+  mergeUserAchievements,
+  type AchievementResult,
+} from '@/lib/achievements';
 import { UserAchievementBadges } from '@/components/achievements/UserAchievementBadges';
 import {
   Dialog,
@@ -402,12 +406,14 @@ export default function Home() {
   }, [rankedUsers, matches, neutralSessionIds]);
 
   const achievementsByUserId = useMemo(() => {
-    const byUserId: Record<string, AchievementResult[]> = {};
-    for (const userId of Object.keys(matchesByUserId)) {
-      byUserId[userId] = calculateUserAchievements(matchesByUserId[userId], sessionsById);
+    const byUserId: Record<string, ReturnType<typeof mergeUserAchievements>> = {};
+    for (const { user } of rankedUsers) {
+      const userMatches = matchesByUserId[user.id] ?? [];
+      const computed = calculateUserAchievements(userMatches, sessionsById);
+      byUserId[user.id] = mergeUserAchievements(computed, user.manualAchievementIds);
     }
     return byUserId;
-  }, [matchesByUserId, sessionsById]);
+  }, [rankedUsers, matchesByUserId, sessionsById]);
   const [isTeamSelectionMode, setIsTeamSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
   const [useRandomness, setUseRandomness] = useState(false);
