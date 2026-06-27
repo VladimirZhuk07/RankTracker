@@ -13,8 +13,6 @@ export type RatingRulesStrings = {
   overviewItem1Rest: string;
   overviewItem2Label: string;
   overviewItem2Rest: string;
-  overviewItem3Label: string;
-  overviewItem3Rest: string;
   winLossTitle: string;
   winLossDescription: string;
   winBulletPrefix: string;
@@ -32,14 +30,6 @@ export type RatingRulesStrings = {
   normalizationDescriptionBefore: string;
   normalizationDescriptionAfter: string;
   normalizationFootnote: string;
-  activityTitle: string;
-  activityDescription: string;
-  activityFormulaLine1: string;
-  tableDaysIdle: string;
-  tableWeight: string;
-  tableEffect: string;
-  effectNone: string;
-  effectRatingZero: string;
 };
 
 const EN: RatingRulesStrings = {
@@ -50,14 +40,11 @@ const EN: RatingRulesStrings = {
   codeLabel: 'calculations.ts',
   introAfterCode: ' and is summarized below.',
   overviewTitle: 'Overview',
-  overviewDescription: 'Three ingredients go into the number you see.',
+  overviewDescription: 'Two ingredients go into the number you see.',
   overviewItem1Label: 'Per-game performance',
   overviewItem1Rest: ' — kills, deaths, and damage, adjusted for win / loss / neutral.',
   overviewItem2Label: 'Normalization',
   overviewItem2Rest: ' — scaled to a fixed theoretical ceiling so values are comparable.',
-  overviewItem3Label: 'Activity',
-  overviewItem3Rest:
-    ' — players who have not played recently are penalized relative to the most recently active player.',
   winLossTitle: 'Win, loss, and neutral',
   winLossDescription:
     'Kills and damage are multiplied by a modifier; deaths are not (dying costs the same in every outcome).',
@@ -79,15 +66,6 @@ const EN: RatingRulesStrings = {
   normalizationDescriptionAfter: '.',
   normalizationFootnote:
     'The final value is capped at 100. Strong players typically land in roughly the 30–70 range.',
-  activityTitle: 'Activity penalty',
-  activityDescription:
-    'Reference date is the latest match date across all players — not “today”.',
-  activityFormulaLine1: "daysSinceLastPlay = referenceDate − player's last match (days)",
-  tableDaysIdle: 'Days idle',
-  tableWeight: 'Weight',
-  tableEffect: 'Effect',
-  effectNone: 'None',
-  effectRatingZero: 'Rating → 0',
 };
 
 const RU: RatingRulesStrings = {
@@ -98,14 +76,11 @@ const RU: RatingRulesStrings = {
   codeLabel: 'calculations.ts',
   introAfterCode: ', ниже кратко.',
   overviewTitle: 'Обзор',
-  overviewDescription: 'В итоговое число входят три составляющие.',
+  overviewDescription: 'В итоговое число входят две составляющие.',
   overviewItem1Label: 'Игра в матчах',
   overviewItem1Rest: ' — убийства, смерти и урон с учётом победы / поражения / ничьей.',
   overviewItem2Label: 'Нормализация',
   overviewItem2Rest: ' — масштабирование к фиксированному теоретическому потолку для сравнимости.',
-  overviewItem3Label: 'Активность',
-  overviewItem3Rest:
-    ' — штраф относительно самого недавно игравшего игрока, если вы давно не играли.',
   winLossTitle: 'Победа, поражение и ничья',
   winLossDescription:
     'Убийства и урон умножаются на модификатор; смерти — нет (смерть «стоит» одинаково при любом исходе).',
@@ -127,15 +102,6 @@ const RU: RatingRulesStrings = {
   normalizationDescriptionAfter: '.',
   normalizationFootnote:
     'Итог ограничен сверху 100. Сильные игроки обычно попадают примерно в диапазон 30–70.',
-  activityTitle: 'Штраф за неактивность',
-  activityDescription:
-    'Референсная дата — дата последнего матча среди всех игроков, а не «сегодня».',
-  activityFormulaLine1: 'daysSinceLastPlay = referenceDate − последний матч игрока (дни)',
-  tableDaysIdle: 'Дней без игры',
-  tableWeight: 'Вес',
-  tableEffect: 'Влияние',
-  effectNone: 'Нет',
-  effectRatingZero: 'Рейтинг → 0',
 };
 
 export function getRatingRulesText(locale: string): RatingRulesStrings {

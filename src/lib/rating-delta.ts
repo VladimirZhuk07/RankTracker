@@ -33,6 +33,41 @@ function distinctLocalDayKeysDescending(matches: MatchRecord[]): string[] {
   return Array.from(keys).sort((a, b) => b.localeCompare(a));
 }
 
+function startOfLocalDayFromKey(key: string): Date {
+  const [y, mo, day] = key.split('-').map(Number);
+  return new Date(y, mo - 1, day, 0, 0, 0, 0);
+}
+
+function getRecentMatchesWithinYear(allMatches: MatchRecord[]): MatchRecord[] {
+  const globalLatest = latestMatchDate(allMatches);
+  if (globalLatest === null) {
+    return [];
+  }
+
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const windowStart = new Date(globalLatest.getTime() - 365 * msPerDay);
+
+  return allMatches.filter((m) => {
+    const d = matchDate(m);
+    return d !== null && d >= windowStart;
+  });
+}
+
+function userIdsOnGlobalPlayDay(matches: MatchRecord[], dayKey: string): Set<string> {
+  const dayStart = startOfLocalDayFromKey(dayKey);
+  const dayEnd = endOfLocalDayFromKey(dayKey);
+  const userIds = new Set<string>();
+
+  for (const m of matches) {
+    const d = matchDate(m);
+    if (d !== null && d >= dayStart && d <= dayEnd) {
+      userIds.add(m.userId);
+    }
+  }
+
+  return userIds;
+}
+
 function latestMatchDate(matches: MatchRecord[]): Date | null {
   const dates = matches
     .map((m) => matchDate(m))
@@ -62,22 +97,14 @@ function computeRatingSnapshotAtEndOfCutoff(
     return 0;
   }
 
-  const referenceDate = new Date(Math.max(...through.map((m) => matchDate(m)!.getTime())));
   const userMatches = through.filter((m) => m.userId === userId);
-  const playerLastMatchDate =
-    userMatches.length > 0
-      ? new Date(Math.max(...userMatches.map((m) => matchDate(m)!.getTime())))
-      : referenceDate;
-
   const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds);
-  return calculateStats(weightedStats, referenceDate, playerLastMatchDate).rating;
+  return calculateStats(weightedStats).rating;
 }
 
 /**
- * Compares rating at end of the **globally** last playing day vs the previous global playing day
- * (same two calendar days for every player). Uses full cumulative stats through each cutoff, so
- * players who did not play on the later day still show a delta from activity penalty when the
- * global reference date moves forward.
+ * Compares rating at end of the globally last playing day vs the previous global playing day
+ * (same two calendar days for every player). Uses full cumulative stats through each cutoff.
  *
  * Match list is limited to the last 365 days from the latest match in the dataset.
  */
@@ -86,18 +113,10 @@ export function getRatingDeltaLastTwoPlayingDays(
   neutralSessionIds: Set<string>,
   userId: string
 ): number | null {
-  const globalLatest = latestMatchDate(allMatches);
-  if (globalLatest === null) {
+  const recentAllMatches = getRecentMatchesWithinYear(allMatches);
+  if (recentAllMatches.length === 0) {
     return null;
   }
-
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const windowStart = new Date(globalLatest.getTime() - 365 * msPerDay);
-
-  const recentAllMatches = allMatches.filter((m) => {
-    const d = matchDate(m);
-    return d !== null && d >= windowStart;
-  });
 
   const globalDayKeys = distinctLocalDayKeysDescending(recentAllMatches);
   if (globalDayKeys.length < 2) {
@@ -106,6 +125,11 @@ export function getRatingDeltaLastTwoPlayingDays(
 
   const lastKey = globalDayKeys[0];
   const prevKey = globalDayKeys[1];
+  const lastDayUserIds = userIdsOnGlobalPlayDay(recentAllMatches, lastKey);
+  if (!lastDayUserIds.has(userId)) {
+    return null;
+  }
+
   const lastEnd = endOfLocalDayFromKey(lastKey);
   const prevEnd = endOfLocalDayFromKey(prevKey);
 
@@ -115,16 +139,11 @@ export function getRatingDeltaLastTwoPlayingDays(
 }
 
 /**
- * Sign + Arabic digits, two decimal places (e.g. +2.45, -0.12).
- * Returns null when rounded delta is 0.00.
+ * Sign + Arabic digits, two decimal places (e.g. +2.45, -0.12, +0.00).
  */
-export function formatRatingDeltaDisplay(delta: number): string | null {
+export function formatRatingDeltaDisplay(delta: number): string {
   const rounded = Math.round(delta * 100) / 100;
-  if (rounded === 0) {
-    return null;
-  }
-
-  const sign = rounded > 0 ? '+' : '-';
+  const sign = rounded >= 0 ? '+' : '-';
   const abs = Math.abs(rounded);
   const intPart = Math.floor(abs);
   const frac100 = Math.round((abs - intPart) * 100);

@@ -2,14 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { calculateWinModifier, MAX_RAW_RATING } from '@/lib/calculations';
 import { getRatingRulesText } from '@/lib/rating-i18n';
 
@@ -52,14 +44,6 @@ rawRating = kdRatio × 2 + averageDamage / 100`,
     [t.aggregationFormulaComment]
   );
 
-  const activityFormula = useMemo(
-    () =>
-      `${t.activityFormulaLine1}
-activityWeight = clamp(1 − daysSinceLastPlay / 365, 0, 1)
-finalRating = normalizedRating × activityWeight`,
-    [t.activityFormulaLine1]
-  );
-
   return (
     <div className="container w-full max-w-3xl py-6">
       <div className="mb-6 space-y-2">
@@ -88,10 +72,6 @@ finalRating = normalizedRating × activityWeight`,
               <li>
                 <span className="text-foreground">{t.overviewItem2Label}</span>
                 {t.overviewItem2Rest}
-              </li>
-              <li>
-                <span className="text-foreground">{t.overviewItem3Label}</span>
-                {t.overviewItem3Rest}
               </li>
             </ol>
           </CardContent>
@@ -156,54 +136,8 @@ else:
           </CardHeader>
           <CardContent className="space-y-4">
             <FormulaBlock>{`normalizedRating = (rawRating / ${MAX_RAW_RATING}) × 100
-finalRating = min(100, normalizedRating × activityWeight)`}</FormulaBlock>
+finalRating = min(100, normalizedRating)`}</FormulaBlock>
             <p className="text-sm text-muted-foreground">{t.normalizationFootnote}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.activityTitle}</CardTitle>
-            <CardDescription>{t.activityDescription}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FormulaBlock>{activityFormula}</FormulaBlock>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t.tableDaysIdle}</TableHead>
-                  <TableHead className="text-right">{t.tableWeight}</TableHead>
-                  <TableHead className="text-right">{t.tableEffect}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell>0</TableCell>
-                  <TableCell className="text-right">1.00</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{t.effectNone}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>30</TableCell>
-                  <TableCell className="text-right">≈0.92</TableCell>
-                  <TableCell className="text-right text-muted-foreground">≈−8%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>90</TableCell>
-                  <TableCell className="text-right">≈0.75</TableCell>
-                  <TableCell className="text-right text-muted-foreground">≈−25%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>180</TableCell>
-                  <TableCell className="text-right">≈0.51</TableCell>
-                  <TableCell className="text-right text-muted-foreground">≈−49%</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>365</TableCell>
-                  <TableCell className="text-right">0.00</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{t.effectRatingZero}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
           </CardContent>
         </Card>
       </div>

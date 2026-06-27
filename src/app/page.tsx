@@ -241,9 +241,11 @@ function StatsPopover({
               <span
                 aria-label={`Rating change since previous playing day: ${ratingDeltaDisplay}`}
                 className={`mt-px text-[9px] font-mono tabular-nums md:text-xs md:leading-none ${
-                  ratingDeltaDisplay.startsWith('+')
-                    ? 'text-emerald-600 dark:text-emerald-500'
-                    : 'text-red-600 dark:text-red-400'
+                  ratingDeltaDisplay === '+0.00'
+                    ? 'text-muted-foreground'
+                    : ratingDeltaDisplay.startsWith('+')
+                      ? 'text-emerald-600 dark:text-emerald-500'
+                      : 'text-red-600 dark:text-red-400'
                 }`}
               >
                 {ratingDeltaDisplay}

@@ -28,12 +28,6 @@ export function calculateWinModifier(won: boolean): number {
   return won ? 1.1 : 0.9;
 }
 
-export function calculateActivityWeight(playerLastMatchDate: Date, referenceDate: Date): number {
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const daysSinceLastPlay = (referenceDate.getTime() - playerLastMatchDate.getTime()) / msPerDay;
-  return Math.max(0, Math.min(1, 1 - daysSinceLastPlay / 365));
-}
-
 export function aggregateMatchesToStats(matches: MatchRecord[]): UserStatsData {
   return matches.reduce(
     (acc, m) => ({
@@ -62,19 +56,14 @@ export function aggregateMatchesWeighted(matches: MatchRecord[], neutralSessionI
   );
 }
 
-export function calculateStats(
-  stats: WeightedStatsData,
-  referenceDate: Date,
-  playerLastMatchDate: Date
-): Omit<UserStats, 'rank'> {
+export function calculateStats(stats: WeightedStatsData): Omit<UserStats, 'rank'> {
   const { effectiveKills, effectiveDeaths, effectiveDamage, totalMaps } = stats;
 
   const kdRatio = effectiveDeaths > 0 ? effectiveKills / effectiveDeaths : effectiveKills;
   const averageDamage = totalMaps > 0 ? effectiveDamage / totalMaps : 0;
   const rawRating = kdRatio * 2 + averageDamage / 100;
   const normalizedRating = (rawRating / MAX_RAW_RATING) * 100;
-  const activityWeight = calculateActivityWeight(playerLastMatchDate, referenceDate);
-  const rating = Math.min(100, normalizedRating * activityWeight);
+  const rating = Math.min(100, normalizedRating);
 
   return {
     kdRatio,

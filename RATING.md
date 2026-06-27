@@ -8,11 +8,10 @@ All logic lives in [`src/lib/calculations.ts`](src/lib/calculations.ts) and
 
 ## Overview
 
-Each player's rating is a number on a **0–100 scale**. It reflects three things:
+Each player's rating is a number on a **0–100 scale**. It reflects two things:
 
 1. **Per-game performance** — kills, deaths, and damage, adjusted for win/loss/neutral outcome.
 2. **Normalization** — scores are scaled against a fixed theoretical ceiling so the number is immediately meaningful.
-3. **Activity penalty** — players who have not played recently are penalized relative to the most recently active player.
 
 ---
 
@@ -108,37 +107,9 @@ The theoretical ceiling player would score **≈99.9 out of 100**. As a safety n
 `finalRating` is clamped to a maximum of **100** to guard against any edge case.
 Real players with strong consistent performance will realistically land in the **30–70** range.
 
----
-
-## Step 5 — Activity Penalty
-
 ```
-referenceDate     = most recent match date across ALL players
-daysSinceLastPlay = referenceDate − player's most recent match date (in days)
-activityWeight    = clamp(1 − daysSinceLastPlay / 365, 0, 1)
-
-finalRating = normalizedRating × activityWeight
+finalRating = min(100, normalizedRating)
 ```
-
-### How it works
-
-| Days since last play | Activity weight | Effect on rating |
-|---|---|---|
-| 0 (played today) | 1.00 | No penalty |
-| 30 days | ≈0.92 | −8% |
-| 90 days | ≈0.75 | −25% |
-| 180 days | ≈0.51 | −49% |
-| 365 days | 0.00 | Rating drops to 0 |
-
-### Key properties
-
-- **Relative, not absolute.** The penalty is calculated relative to the most recent match
-  across all players, not relative to today's date. If nobody plays for a month, all
-  penalties freeze — ratings stay stable until new data arrives.
-- **Continuous.** A player who stops playing gradually loses standing as others keep
-  playing and push the reference date forward.
-- **Recoverable.** Playing a new match immediately restores `daysSinceLastPlay = 0`
-  and removes the penalty.
 
 ---
 
@@ -159,25 +130,5 @@ averageDamage   = effectiveDamage / totalMaps
 rawRating       = kdRatio × 2 + averageDamage / 100
 normalizedRating = (rawRating / 52.43) × 100
 
-referenceDate   = max match date across all players
-activityWeight  = clamp(1 − daysSinceLastPlay / 365, 0, 1)
-
-finalRating     = normalizedRating × activityWeight         (0–100)
+finalRating     = min(100, normalizedRating)              (0–100)
 ```
-
----
-
-## Example: Activity Break
-
-Player A played 10 games in January, then stopped. Player B played 10 games spread across
-the whole year. Both players have identical per-game stats (K/D 2.5, 60% win rate).
-
-Without the activity penalty, both have the same `normalizedRating`.
-
-If it is now November and Player B played yesterday:
-
-- **Player B:** `daysSinceLastPlay = 1` → `activityWeight ≈ 1.0` → no penalty
-- **Player A:** `daysSinceLastPlay ≈ 300` → `activityWeight ≈ 0.18` → rating reduced to 18% of its value
-
-If neither player plays for the next month, both penalties freeze at those values until
-someone plays again and advances the reference date.
