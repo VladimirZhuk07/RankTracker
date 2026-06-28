@@ -430,6 +430,31 @@ export function formatTeamDivisionText(result: TeamDivisionResult): string {
 }
 
 /**
+ * Run multiple greedy-random divisions on Elo ratings; candidates are sorted best-first.
+ */
+export const TEAM_DIVISION_CANDIDATE_COUNT = 50;
+
+export function generateTeamDivisionCandidates(
+  players: PlayerData[],
+  count: number = TEAM_DIVISION_CANDIDATE_COUNT
+): TeamDivisionResult[] {
+  if (players.length < 2) {
+    throw new Error('Need at least 2 players to create teams');
+  }
+
+  const results: TeamDivisionResult[] = [];
+  for (let i = 0; i < count; i++) {
+    results.push(divideTeamsGreedyWithRandomness(players));
+  }
+
+  return results.sort(
+    (a, b) =>
+      a.balanceAnalysis.ratingDifference - b.balanceAnalysis.ratingDifference ||
+      b.balanceAnalysis.fairnessScore - a.balanceAnalysis.fairnessScore
+  );
+}
+
+/**
  * Main function to divide teams using the best algorithm for the given scenario
  */
 export function divideIntoBalancedTeams(

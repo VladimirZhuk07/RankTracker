@@ -22,11 +22,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Shuffle, Copy, CheckCircle, History } from 'lucide-react';
+import { Info, BarChart, Crosshair, Skull, Dices, Target, LoaderCircle, Users, X, Copy, CheckCircle, History } from 'lucide-react';
 import { useFirebase, useCollection } from '@/firebase';
 import { getSessionsQuery } from '@/lib/storage/queries';
 import { useState, useMemo } from 'react';
-import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
+import { formatTeamDivisionText, generateTeamDivisionCandidates, type TeamDivisionResult } from '@/lib/team-balancer';
+import { cn } from '@/lib/utils';
 import { useRankedUsers } from '@/hooks/use-ranked-users';
 import { EloConfigPopover } from '@/components/rating/EloConfigPopover';
 import { DEFAULT_ELO_CONFIG, type EloConfig } from '@/lib/rating-elo';
@@ -405,10 +406,12 @@ export default function Home() {
   }, [rankedUsers, matchesByUserId, sessionsById]);
   const [isTeamSelectionMode, setIsTeamSelectionMode] = useState(false);
   const [selectedPlayers, setSelectedPlayers] = useState<Set<string>>(new Set());
-  const [useRandomness, setUseRandomness] = useState(false);
-  const [teamResult, setTeamResult] = useState<TeamDivisionResult | null>(null);
+  const [teamCandidates, setTeamCandidates] = useState<TeamDivisionResult[]>([]);
+  const [selectedCandidateIndex, setSelectedCandidateIndex] = useState(0);
   const [showTeamDialog, setShowTeamDialog] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const teamResult = teamCandidates[selectedCandidateIndex] ?? null;
 
   const handleCreateTeamsClick = () => {
     setIsTeamSelectionMode(true);
@@ -435,9 +438,9 @@ export default function Home() {
       .filter(({ user }) => selectedPlayers.has(user.id))
       .map(({ user, stats }) => ({ user, stats }));
 
-    const algorithm = useRandomness ? 'random-weighted' : 'balanced';
-    const teamDivision = divideIntoBalancedTeams(selectedPlayersData, algorithm);
-    setTeamResult(teamDivision);
+    const candidates = generateTeamDivisionCandidates(selectedPlayersData);
+    setTeamCandidates(candidates);
+    setSelectedCandidateIndex(0);
     setShowTeamDialog(true);
   };
 
@@ -461,7 +464,8 @@ export default function Home() {
 
   const handleCloseDialog = () => {
     setShowTeamDialog(false);
-    setTeamResult(null);
+    setTeamCandidates([]);
+    setSelectedCandidateIndex(0);
     setCopied(false);
     setIsTeamSelectionMode(false);
     setSelectedPlayers(new Set());
@@ -509,23 +513,9 @@ export default function Home() {
                     Select Players for Teams
                   </CardTitle>
                   <CardDescription>
-                    Choose at least 3 players to divide into balanced teams.
+                    Choose at least 3 players. Teams are balanced by Elo rating.
                   </CardDescription>
                 </CardHeader>
-
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="randomness-toggle"
-                      checked={useRandomness}
-                      onCheckedChange={(checked) => setUseRandomness(checked === true)}
-                    />
-                    <label htmlFor="randomness-toggle" className="text-sm text-muted-foreground cursor-pointer flex items-center gap-1">
-                      <Shuffle className="h-4 w-4" />
-                      Add randomness for similar skill players
-                    </label>
-                  </div>
-                </CardContent>
 
                 <CardFooter className="flex gap-3">
                   <Button onClick={handleCancelSelection} variant="outline">
@@ -620,27 +610,46 @@ export default function Home() {
                   Teams Created!
                 </DialogTitle>
                 <DialogDescription>
-                  Your balanced teams are ready. You can copy this text.
+                  Pick one of {teamCandidates.length} Elo-balanced splits (best rating match first).
                 </DialogDescription>
               </div>
-              {useRandomness && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const selectedPlayersData = rankedUsers
-                      .filter(({ user }) => selectedPlayers.has(user.id))
-                      .map(({ user, stats }) => ({ user, stats }));
-                    setTeamResult(divideIntoBalancedTeams(selectedPlayersData, 'random-weighted'));
-                  }}
-                  className="flex items-center gap-1"
-                >
-                  <Shuffle className="h-3 w-3" />
-                  Recalculate
-                </Button>
-              )}
             </div>
           </DialogHeader>
+
+          {teamCandidates.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Division options</p>
+              <div className="max-h-36 overflow-y-auto custom-scrollbar rounded-md border">
+                {teamCandidates.map((candidate, index) => {
+                  const isSelected = index === selectedCandidateIndex;
+                  const team1Names = candidate.team1.players.map((p) => p.name).join(', ');
+                  const team2Names = candidate.team2.players.map((p) => p.name).join(', ');
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setSelectedCandidateIndex(index)}
+                      className={cn(
+                        'flex w-full flex-col gap-0.5 border-b px-3 py-2 text-left text-sm last:border-b-0 transition-colors',
+                        isSelected ? 'bg-accent/15 ring-1 ring-inset ring-accent/40' : 'hover:bg-muted/60'
+                      )}
+                    >
+                      <span className="font-medium">
+                        #{index + 1} · Δ {candidate.balanceAnalysis.ratingDifference.toFixed(2)} ·{' '}
+                        {candidate.balanceAnalysis.fairnessScore.toFixed(1)}% balanced
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {candidate.team1.name}: {team1Names}
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {candidate.team2.name}: {team2Names}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {teamResult && (
             <div className="space-y-4">
