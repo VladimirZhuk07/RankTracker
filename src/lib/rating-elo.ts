@@ -3,10 +3,20 @@ import type { MatchRecord } from './storage/definitions';
 export const INITIAL_RATING = 1000;
 export const DEFAULT_K_FACTOR = 24;
 export const DEFAULT_ELO_SCALE = 400;
+export const DEFAULT_OUTCOME_WEIGHT_PCT = 40;
+export const DEFAULT_SKILL_WEIGHT_PCT = 60;
+export const MIN_SKILL_WEIGHT_PCT = 10;
+export const MAX_SKILL_WEIGHT_PCT = 90;
+export const MIN_OUTCOME_WEIGHT_PCT = 10;
+export const MAX_OUTCOME_WEIGHT_PCT = 90;
+export const KD_WEIGHT_IN_PERF = 0.6;
+export const ADR_WEIGHT_IN_PERF = 0.4;
 
 export type EloConfig = {
   kFactor: number;
   eloScale: number;
+  outcomeWeightPct: number;
+  skillWeightPct: number;
 };
 
 export type EloReplayOptions = EloConfig & {
@@ -17,11 +27,16 @@ export type EloReplayOptions = EloConfig & {
 export const DEFAULT_ELO_CONFIG: EloConfig = {
   kFactor: DEFAULT_K_FACTOR,
   eloScale: DEFAULT_ELO_SCALE,
+  outcomeWeightPct: DEFAULT_OUTCOME_WEIGHT_PCT,
+  skillWeightPct: DEFAULT_SKILL_WEIGHT_PCT,
 };
 
 type SessionPlayer = {
   userId: string;
   won: boolean;
+  kills: number;
+  deaths: number;
+  damage: number;
 };
 
 type SessionBundle = {
@@ -45,6 +60,68 @@ function matchCreatedAt(m: MatchRecord): number {
   return m.createdAt.toDate().getTime();
 }
 
+export function normalizeRatingWeights(
+  outcomeWeightPct?: number,
+  skillWeightPct?: number
+): Pick<EloConfig, 'outcomeWeightPct' | 'skillWeightPct'> {
+  if (skillWeightPct !== undefined) {
+    if (skillWeightPct === 0) {
+      return { outcomeWeightPct: 100, skillWeightPct: 0 };
+    }
+    const skill = Math.min(MAX_SKILL_WEIGHT_PCT, Math.max(MIN_SKILL_WEIGHT_PCT, skillWeightPct));
+    return { outcomeWeightPct: 100 - skill, skillWeightPct: skill };
+  }
+  if (outcomeWeightPct !== undefined) {
+    if (outcomeWeightPct === 100) {
+      return { outcomeWeightPct: 100, skillWeightPct: 0 };
+    }
+    const outcome = Math.min(
+      MAX_OUTCOME_WEIGHT_PCT,
+      Math.max(MIN_OUTCOME_WEIGHT_PCT, outcomeWeightPct)
+    );
+    return { outcomeWeightPct: outcome, skillWeightPct: 100 - outcome };
+  }
+  return {
+    outcomeWeightPct: DEFAULT_OUTCOME_WEIGHT_PCT,
+    skillWeightPct: DEFAULT_SKILL_WEIGHT_PCT,
+  };
+}
+
+export function percentileRank(value: number, values: number[]): number {
+  if (values.length === 0) {
+    return 0.5;
+  }
+  if (values.length === 1) {
+    return 0.5;
+  }
+  const less = values.filter((v) => v < value).length;
+  const equal = values.filter((v) => v === value).length;
+  return (less + (equal - 1) / 2) / (values.length - 1);
+}
+
+function kdRatio(kills: number, deaths: number): number {
+  return deaths > 0 ? kills / deaths : kills;
+}
+
+export function mapPerformanceIndex(player: SessionPlayer, players: SessionPlayer[]): number {
+  const kds = players.map((p) => kdRatio(p.kills, p.deaths));
+  const adrs = players.map((p) => p.damage);
+  const kdPct = percentileRank(kdRatio(player.kills, player.deaths), kds);
+  const adrPct = percentileRank(player.damage, adrs);
+  return KD_WEIGHT_IN_PERF * kdPct + ADR_WEIGHT_IN_PERF * adrPct;
+}
+
+export function computeSkillDelta(
+  kFactor: number,
+  skillWeightPct: number,
+  perfIndex: number
+): number {
+  if (skillWeightPct <= 0) {
+    return 0;
+  }
+  return (skillWeightPct / 100) * kFactor * (perfIndex - 0.5);
+}
+
 export function computeExpectedScore(
   myTeamAvg: number,
   oppTeamAvg: number,
@@ -54,9 +131,11 @@ export function computeExpectedScore(
 }
 
 function resolveEloConfig(config?: Partial<EloConfig>): EloConfig {
+  const weights = normalizeRatingWeights(config?.outcomeWeightPct, config?.skillWeightPct);
   return {
     kFactor: config?.kFactor ?? DEFAULT_K_FACTOR,
     eloScale: config?.eloScale ?? DEFAULT_ELO_SCALE,
+    ...weights,
   };
 }
 
@@ -65,7 +144,10 @@ function buildSessionBundles(
   neutralSessionIds: Set<string>,
   cutoffInclusive?: Date
 ): SessionBundle[] {
-  const bySession = new Map<string, Map<string, SessionPlayer & { sortCreatedAt: number }>>();
+  const bySession = new Map<
+    string,
+    Map<string, SessionPlayer & { sortCreatedAt: number }>
+  >();
 
   for (const match of matches) {
     if (!match.sessionId || neutralSessionIds.has(match.sessionId)) {
@@ -90,6 +172,9 @@ function buildSessionBundles(
     session.set(match.userId, {
       userId: match.userId,
       won: match.won,
+      kills: match.kills,
+      deaths: match.deaths,
+      damage: match.damage,
       sortCreatedAt: createdAt,
     });
   }
@@ -114,7 +199,13 @@ function buildSessionBundles(
       sessionId,
       sortTime: Math.min(...sessionDates.map((d) => d.getTime())),
       sortCreatedAt: Math.min(...sessionCreatedAt),
-      players: players.map(({ userId, won }) => ({ userId, won })),
+      players: players.map(({ userId, won, kills, deaths, damage }) => ({
+        userId,
+        won,
+        kills,
+        deaths,
+        damage,
+      })),
     });
   }
 
@@ -138,7 +229,8 @@ function processSession(
   ratings: Map<string, number>,
   players: SessionPlayer[],
   kFactor: number,
-  eloScale: number
+  eloScale: number,
+  skillWeightPct: number
 ): void {
   const winners = players.filter((p) => p.won);
   const losers = players.filter((p) => !p.won);
@@ -152,27 +244,33 @@ function processSession(
   const winnerAvg = teamAverage(ratings, winnerIds);
   const loserAvg = teamAverage(ratings, loserIds);
 
-  for (const { userId } of winners) {
+  for (const player of winners) {
     const expected = computeExpectedScore(winnerAvg, loserAvg, eloScale);
-    const current = getRating(ratings, userId);
-    ratings.set(userId, current + kFactor * (1 - expected));
+    const outcomeDelta = kFactor * (1 - expected);
+    const perfIndex = mapPerformanceIndex(player, players);
+    const skillDelta = computeSkillDelta(kFactor, skillWeightPct, perfIndex);
+    const current = getRating(ratings, player.userId);
+    ratings.set(player.userId, current + outcomeDelta + skillDelta);
   }
 
-  for (const { userId } of losers) {
+  for (const player of losers) {
     const expected = computeExpectedScore(loserAvg, winnerAvg, eloScale);
-    const current = getRating(ratings, userId);
-    ratings.set(userId, current + kFactor * (0 - expected));
+    const outcomeDelta = kFactor * (0 - expected);
+    const perfIndex = mapPerformanceIndex(player, players);
+    const skillDelta = computeSkillDelta(kFactor, skillWeightPct, perfIndex);
+    const current = getRating(ratings, player.userId);
+    ratings.set(player.userId, current + outcomeDelta + skillDelta);
   }
 }
 
 /** Chronological map-based team Elo replay. */
 export function replayElo(matches: MatchRecord[], options: EloReplayOptions): Map<string, number> {
-  const { neutralSessionIds, cutoffInclusive, kFactor, eloScale } = options;
+  const { neutralSessionIds, cutoffInclusive, kFactor, eloScale, skillWeightPct } = options;
   const ratings = new Map<string, number>();
   const sessions = buildSessionBundles(matches, neutralSessionIds, cutoffInclusive);
 
   for (const session of sessions) {
-    processSession(ratings, session.players, kFactor, eloScale);
+    processSession(ratings, session.players, kFactor, eloScale, skillWeightPct);
   }
 
   return ratings;

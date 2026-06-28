@@ -10,6 +10,13 @@ import {
   DEFAULT_ELO_CONFIG,
   DEFAULT_ELO_SCALE,
   DEFAULT_K_FACTOR,
+  DEFAULT_OUTCOME_WEIGHT_PCT,
+  DEFAULT_SKILL_WEIGHT_PCT,
+  MAX_OUTCOME_WEIGHT_PCT,
+  MAX_SKILL_WEIGHT_PCT,
+  MIN_OUTCOME_WEIGHT_PCT,
+  MIN_SKILL_WEIGHT_PCT,
+  normalizeRatingWeights,
   type EloConfig,
 } from '@/lib/rating-elo';
 import { cn } from '@/lib/utils';
@@ -22,31 +29,72 @@ const MIN_ELO_SCALE = 200;
 const MAX_ELO_SCALE = 800;
 const ELO_SCALE_STEP = 10;
 
+const WEIGHT_STEP = 5;
+
 type EloConfigPopoverProps = {
   eloConfig: EloConfig;
   onEloConfigCommit: (value: EloConfig) => void;
 };
 
 function isDefaultEloConfig(config: EloConfig): boolean {
-  return config.kFactor === DEFAULT_K_FACTOR && config.eloScale === DEFAULT_ELO_SCALE;
+  return (
+    config.kFactor === DEFAULT_K_FACTOR &&
+    config.eloScale === DEFAULT_ELO_SCALE &&
+    config.outcomeWeightPct === DEFAULT_OUTCOME_WEIGHT_PCT &&
+    config.skillWeightPct === DEFAULT_SKILL_WEIGHT_PCT
+  );
 }
 
 export function EloConfigPopover({ eloConfig, onEloConfigCommit }: EloConfigPopoverProps) {
   const [draftKFactor, setDraftKFactor] = useState(eloConfig.kFactor);
   const [draftEloScale, setDraftEloScale] = useState(eloConfig.eloScale);
+  const [draftSkillWeightPct, setDraftSkillWeightPct] = useState(eloConfig.skillWeightPct);
   const [labelsPulse, setLabelsPulse] = useState(false);
 
   useEffect(() => {
     setDraftKFactor(eloConfig.kFactor);
     setDraftEloScale(eloConfig.eloScale);
+    setDraftSkillWeightPct(eloConfig.skillWeightPct);
   }, [eloConfig]);
 
+  const draftOutcomeWeightPct = 100 - draftSkillWeightPct;
   const isNonDefault = !isDefaultEloConfig(eloConfig);
 
-  const commitConfig = (kFactor: number, eloScale: number) => {
-    onEloConfigCommit({ kFactor, eloScale });
+  const commitConfig = (next: Partial<EloConfig>) => {
+    let weights: Pick<EloConfig, 'outcomeWeightPct' | 'skillWeightPct'>;
+    if (next.skillWeightPct !== undefined) {
+      weights = normalizeRatingWeights(undefined, next.skillWeightPct);
+    } else if (next.outcomeWeightPct !== undefined) {
+      weights = normalizeRatingWeights(next.outcomeWeightPct, undefined);
+    } else {
+      weights = {
+        outcomeWeightPct: eloConfig.outcomeWeightPct,
+        skillWeightPct: eloConfig.skillWeightPct,
+      };
+    }
+    onEloConfigCommit({
+      kFactor: next.kFactor ?? eloConfig.kFactor,
+      eloScale: next.eloScale ?? eloConfig.eloScale,
+      ...weights,
+    });
     setLabelsPulse(true);
     window.setTimeout(() => setLabelsPulse(false), 150);
+  };
+
+  const handleSkillWeightChange = (skillWeightPct: number) => {
+    setDraftSkillWeightPct(skillWeightPct);
+  };
+
+  const handleSkillWeightCommit = (skillWeightPct: number) => {
+    const weights = normalizeRatingWeights(undefined, skillWeightPct);
+    setDraftSkillWeightPct(weights.skillWeightPct);
+    commitConfig({ skillWeightPct: weights.skillWeightPct });
+  };
+
+  const handleOutcomeWeightCommit = (outcomeWeightPct: number) => {
+    const weights = normalizeRatingWeights(outcomeWeightPct, undefined);
+    setDraftSkillWeightPct(weights.skillWeightPct);
+    commitConfig({ outcomeWeightPct: weights.outcomeWeightPct });
   };
 
   return (
@@ -103,7 +151,7 @@ export function EloConfigPopover({ eloConfig, onEloConfigCommit }: EloConfigPopo
             step={K_STEP}
             value={[draftKFactor]}
             onValueChange={([value]) => setDraftKFactor(value)}
-            onValueCommit={([value]) => commitConfig(value, draftEloScale)}
+            onValueCommit={([value]) => commitConfig({ kFactor: value })}
             aria-label="K factor"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
@@ -123,7 +171,7 @@ export function EloConfigPopover({ eloConfig, onEloConfigCommit }: EloConfigPopo
             step={ELO_SCALE_STEP}
             value={[draftEloScale]}
             onValueChange={([value]) => setDraftEloScale(value)}
-            onValueCommit={([value]) => commitConfig(draftKFactor, value)}
+            onValueCommit={([value]) => commitConfig({ eloScale: value })}
             aria-label="Elo scale"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
@@ -132,8 +180,47 @@ export function EloConfigPopover({ eloConfig, onEloConfigCommit }: EloConfigPopo
           </div>
         </div>
 
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Map result (W/L)</span>
+            <span className="font-mono tabular-nums">{draftOutcomeWeightPct}%</span>
+          </div>
+          <Slider
+            id="elo-outcome-weight-slider"
+            min={MIN_OUTCOME_WEIGHT_PCT}
+            max={MAX_OUTCOME_WEIGHT_PCT}
+            step={WEIGHT_STEP}
+            value={[draftOutcomeWeightPct]}
+            onValueChange={([value]) => handleSkillWeightChange(100 - value)}
+            onValueCommit={([value]) => handleOutcomeWeightCommit(value)}
+            aria-label="Map result weight percentage"
+          />
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-muted-foreground">Performance (K/D + dmg)</span>
+            <span className="font-mono tabular-nums">{draftSkillWeightPct}%</span>
+          </div>
+          <Slider
+            id="elo-skill-weight-slider"
+            min={MIN_SKILL_WEIGHT_PCT}
+            max={MAX_SKILL_WEIGHT_PCT}
+            step={WEIGHT_STEP}
+            value={[draftSkillWeightPct]}
+            onValueChange={([value]) => handleSkillWeightChange(value)}
+            onValueCommit={([value]) => handleSkillWeightCommit(value)}
+            aria-label="Performance weight percentage"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{MIN_SKILL_WEIGHT_PCT}%</span>
+            <span>{MAX_SKILL_WEIGHT_PCT}%</span>
+          </div>
+        </div>
+
         <p className="mt-3 text-xs text-muted-foreground">
-          Default: K {DEFAULT_ELO_CONFIG.kFactor}, scale {DEFAULT_ELO_CONFIG.eloScale}
+          Default: K {DEFAULT_ELO_CONFIG.kFactor}, scale {DEFAULT_ELO_CONFIG.eloScale},{' '}
+          {DEFAULT_OUTCOME_WEIGHT_PCT}/{DEFAULT_SKILL_WEIGHT_PCT} weights
         </p>
         <p className="mt-1 text-xs italic text-muted-foreground">Resets on page reload</p>
       </PopoverContent>
