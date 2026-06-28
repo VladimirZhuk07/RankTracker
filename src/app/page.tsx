@@ -28,8 +28,9 @@ import { getSessionsQuery } from '@/lib/storage/queries';
 import { useState, useMemo } from 'react';
 import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
 import { useRankedUsers } from '@/hooks/use-ranked-users';
-import { DEFAULT_WIN_PCT, winPctToModifiers } from '@/lib/rating-modifiers';
-import { RatingConfigPopover } from '@/components/rating/RatingConfigPopover';
+import { EloConfigPopover } from '@/components/rating/EloConfigPopover';
+import { DEFAULT_ELO_CONFIG, type EloConfig } from '@/lib/rating-elo';
+import { getNeutralSessionIds } from '@/lib/neutral-sessions';
 import {
   formatRatingDeltaDisplay,
   getRatingDeltaLastTwoPlayingDays,
@@ -356,8 +357,8 @@ function StatsPopover({
 
 export default function Home() {
   const { firestore } = useFirebase();
-  const [winPct, setWinPct] = useState(DEFAULT_WIN_PCT);
-  const { rankedUsers, matches, loading } = useRankedUsers(firestore, winPct);
+  const [eloConfig, setEloConfig] = useState<EloConfig>(DEFAULT_ELO_CONFIG);
+  const { rankedUsers, matches, loading } = useRankedUsers(firestore, eloConfig);
 
   const sessionsQuery = useMemo(() => {
     if (!firestore) return null;
@@ -382,35 +383,16 @@ export default function Home() {
     }, {}),
     [matches]
   );
-  const neutralSessionIds = useMemo(() => {
-    // Match the same neutral-session definition used for ratings:
-    // a session is neutral only if *all* matches in that session have won=false.
-    const neutralIds = matches.reduce<Set<string>>((acc, match) => {
-      if (match.sessionId && !acc.has(match.sessionId)) {
-        acc.add(match.sessionId);
-      }
-      return acc;
-    }, new Set<string>());
-
-    matches.forEach((match) => {
-      if (match.won && neutralIds.has(match.sessionId)) {
-        neutralIds.delete(match.sessionId);
-      }
-    });
-
-    return neutralIds;
-  }, [matches]);
-
-  const ratingModifiers = useMemo(() => winPctToModifiers(winPct), [winPct]);
+  const neutralSessionIds = useMemo(() => getNeutralSessionIds(matches), [matches]);
 
   const ratingDeltaDisplayByUserId = useMemo(() => {
     const result: Record<string, string | null> = {};
     for (const { user } of rankedUsers) {
-      const delta = getRatingDeltaLastTwoPlayingDays(matches, neutralSessionIds, user.id, ratingModifiers);
+      const delta = getRatingDeltaLastTwoPlayingDays(matches, neutralSessionIds, user.id, eloConfig);
       result[user.id] = delta === null ? null : formatRatingDeltaDisplay(delta);
     }
     return result;
-  }, [rankedUsers, matches, neutralSessionIds, ratingModifiers]);
+  }, [rankedUsers, matches, neutralSessionIds, eloConfig]);
 
   const achievementsByUserId = useMemo(() => {
     const byUserId: Record<string, ReturnType<typeof mergeUserAchievements>> = {};
@@ -580,7 +562,7 @@ export default function Home() {
                   <TableHead className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] pl-1 max-md:pr-2 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
                     <div className="flex items-center justify-end gap-1">
                       <span className="text-xs md:text-sm">Rating</span>
-                      <RatingConfigPopover winPct={winPct} onWinPctCommit={setWinPct} />
+                      <EloConfigPopover eloConfig={eloConfig} onEloConfigCommit={setEloConfig} />
                     </div>
                   </TableHead>
                 </TableRow>

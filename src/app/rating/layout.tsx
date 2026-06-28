@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Rating rules — CS2 Rank Tracker',
   description:
-    'How player ratings are calculated: win/loss modifiers, K/D, damage, normalization, and activity.',
+    'How player ratings are calculated: map-based team Elo, wins vs opponent strength, neutral scrims, and display-only stats.',
 };
 
 export default function RatingLayout({

@@ -1,6 +1,5 @@
 import type { MatchRecord } from './storage/definitions';
-import { aggregateMatchesWeighted, calculateStats } from './calculations';
-import { DEFAULT_WIN_LOSS_MODIFIERS, type WinLossModifiers } from './rating-modifiers';
+import { computeEloRatings, getUserEloRating, type EloConfig } from './rating-elo';
 
 function matchDate(m: MatchRecord): Date | null {
   const t = m.date;
@@ -80,33 +79,26 @@ function latestMatchDate(matches: MatchRecord[]): Date | null {
   return new Date(Math.max(...dates));
 }
 
-/**
- * Full cumulative rating at end of `cutoffInclusive` (same rules as leaderboard),
- * using only matches in `allMatches` with date <= cutoff.
- */
 function computeRatingSnapshotAtEndOfCutoff(
   allMatches: MatchRecord[],
   neutralSessionIds: Set<string>,
   userId: string,
   cutoffInclusive: Date,
-  modifiers: WinLossModifiers = DEFAULT_WIN_LOSS_MODIFIERS
+  eloConfig?: Partial<EloConfig>
 ): number {
   const through = allMatches.filter((m) => {
     const d = matchDate(m);
     return d !== null && d <= cutoffInclusive;
   });
-  if (through.length === 0) {
-    return 0;
-  }
 
   const userMatches = through.filter((m) => m.userId === userId);
-  const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds, modifiers);
-  return calculateStats(weightedStats).rating;
+  const eloRatings = computeEloRatings(through, neutralSessionIds, eloConfig, cutoffInclusive);
+  return getUserEloRating(eloRatings, userId, userMatches.length > 0);
 }
 
 /**
  * Compares rating at end of the globally last playing day vs the previous global playing day
- * (same two calendar days for every player). Uses full cumulative stats through each cutoff.
+ * (same two calendar days for every player). Uses full cumulative Elo through each cutoff.
  *
  * Match list is limited to the last 365 days from the latest match in the dataset.
  */
@@ -114,7 +106,7 @@ export function getRatingDeltaLastTwoPlayingDays(
   allMatches: MatchRecord[],
   neutralSessionIds: Set<string>,
   userId: string,
-  modifiers: WinLossModifiers = DEFAULT_WIN_LOSS_MODIFIERS
+  eloConfig?: Partial<EloConfig>
 ): number | null {
   const recentAllMatches = getRecentMatchesWithinYear(allMatches);
   if (recentAllMatches.length === 0) {
@@ -136,8 +128,20 @@ export function getRatingDeltaLastTwoPlayingDays(
   const lastEnd = endOfLocalDayFromKey(lastKey);
   const prevEnd = endOfLocalDayFromKey(prevKey);
 
-  const ratingLast = computeRatingSnapshotAtEndOfCutoff(recentAllMatches, neutralSessionIds, userId, lastEnd, modifiers);
-  const ratingPrev = computeRatingSnapshotAtEndOfCutoff(recentAllMatches, neutralSessionIds, userId, prevEnd, modifiers);
+  const ratingLast = computeRatingSnapshotAtEndOfCutoff(
+    recentAllMatches,
+    neutralSessionIds,
+    userId,
+    lastEnd,
+    eloConfig
+  );
+  const ratingPrev = computeRatingSnapshotAtEndOfCutoff(
+    recentAllMatches,
+    neutralSessionIds,
+    userId,
+    prevEnd,
+    eloConfig
+  );
   return ratingLast - ratingPrev;
 }
 

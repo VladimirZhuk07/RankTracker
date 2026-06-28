@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useActionState } from 'react';
 import type { MatchRecord, SessionRecord, User } from '@/lib/storage/definitions';
 import { CS2_MAPS } from '@/lib/storage/definitions';
+import { getNeutralSessionIds } from '@/lib/neutral-sessions';
 import { previewCsvFile, previewCsvText, previewImageFile } from '@/lib/preview-actions';
 import { CsvPreviewTable, ParsedUserData } from '@/components/admin/CsvPreviewTable';
 import {
@@ -802,22 +803,7 @@ function MatchHistoryTable({
   const [neutralSessionIds, setNeutralSessionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Match the same neutral-session logic used on the public leaderboard:
-    // a session is neutral only if *all* its matches have won=false.
-    const neutralIds = matches.reduce<Set<string>>((acc, match) => {
-      if (match.sessionId && !acc.has(match.sessionId)) {
-        acc.add(match.sessionId);
-      }
-      return acc;
-    }, new Set<string>());
-
-    matches.forEach((match) => {
-      if (match.won && neutralIds.has(match.sessionId)) {
-        neutralIds.delete(match.sessionId);
-      }
-    });
-
-    setNeutralSessionIds(neutralIds);
+    setNeutralSessionIds(getNeutralSessionIds(matches));
 
     setRows(
       matches.map((m) => {
