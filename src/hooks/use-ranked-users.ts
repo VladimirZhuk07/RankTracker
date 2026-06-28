@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import type { Firestore } from 'firebase/firestore';
 import type { MatchRecord, User, UserStatsData } from '@/lib/storage/definitions';
 import { aggregateMatchesToStats, aggregateMatchesWeighted, calculateStats, type UserStats } from '@/lib/calculations';
+import { DEFAULT_WIN_PCT, winPctToModifiers } from '@/lib/rating-modifiers';
 import { getUsersQuery, getMatchesQuery } from '@/lib/storage/queries';
 import { useCollection } from '@/firebase';
 
@@ -13,7 +14,10 @@ export type RankedUser = {
   stats: UserStats;
 };
 
-export function useRankedUsers(firestore: Firestore | null): { rankedUsers: RankedUser[]; matches: MatchRecord[]; loading: boolean } {
+export function useRankedUsers(
+  firestore: Firestore | null,
+  winPct: number = DEFAULT_WIN_PCT
+): { rankedUsers: RankedUser[]; matches: MatchRecord[]; loading: boolean } {
   const usersQuery = useMemo(() => {
     if (!firestore) return null;
     return getUsersQuery(firestore);
@@ -52,11 +56,13 @@ export function useRankedUsers(firestore: Firestore | null): { rankedUsers: Rank
       return acc;
     }, {});
 
+    const modifiers = winPctToModifiers(winPct);
+
     return users
       .map((user) => {
         const userMatches = matchesByUserId[user.id] ?? [];
         const userStatsData = aggregateMatchesToStats(userMatches);
-        const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds);
+        const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds, modifiers);
 
         const stats = calculateStats(weightedStats);
         return { user, userStatsData, stats };
@@ -66,7 +72,7 @@ export function useRankedUsers(firestore: Firestore | null): { rankedUsers: Rank
         ...data,
         stats: { ...data.stats, rank: index + 1 },
       }));
-  }, [usersData, matchesData]);
+  }, [usersData, matchesData, winPct]);
 
   const matches = useMemo(() => (matchesData ?? []) as MatchRecord[], [matchesData]);
 

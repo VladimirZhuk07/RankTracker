@@ -28,6 +28,8 @@ import { getSessionsQuery } from '@/lib/storage/queries';
 import { useState, useMemo } from 'react';
 import { divideIntoBalancedTeams, formatTeamDivisionText, type TeamDivisionResult } from '@/lib/team-balancer';
 import { useRankedUsers } from '@/hooks/use-ranked-users';
+import { DEFAULT_WIN_PCT, winPctToModifiers } from '@/lib/rating-modifiers';
+import { RatingConfigPopover } from '@/components/rating/RatingConfigPopover';
 import {
   formatRatingDeltaDisplay,
   getRatingDeltaLastTwoPlayingDays,
@@ -354,7 +356,8 @@ function StatsPopover({
 
 export default function Home() {
   const { firestore } = useFirebase();
-  const { rankedUsers, matches, loading } = useRankedUsers(firestore);
+  const [winPct, setWinPct] = useState(DEFAULT_WIN_PCT);
+  const { rankedUsers, matches, loading } = useRankedUsers(firestore, winPct);
 
   const sessionsQuery = useMemo(() => {
     if (!firestore) return null;
@@ -398,14 +401,16 @@ export default function Home() {
     return neutralIds;
   }, [matches]);
 
+  const ratingModifiers = useMemo(() => winPctToModifiers(winPct), [winPct]);
+
   const ratingDeltaDisplayByUserId = useMemo(() => {
     const result: Record<string, string | null> = {};
     for (const { user } of rankedUsers) {
-      const delta = getRatingDeltaLastTwoPlayingDays(matches, neutralSessionIds, user.id);
+      const delta = getRatingDeltaLastTwoPlayingDays(matches, neutralSessionIds, user.id, ratingModifiers);
       result[user.id] = delta === null ? null : formatRatingDeltaDisplay(delta);
     }
     return result;
-  }, [rankedUsers, matches, neutralSessionIds]);
+  }, [rankedUsers, matches, neutralSessionIds, ratingModifiers]);
 
   const achievementsByUserId = useMemo(() => {
     const byUserId: Record<string, ReturnType<typeof mergeUserAchievements>> = {};
@@ -573,7 +578,10 @@ export default function Home() {
                     Player
                   </TableHead>
                   <TableHead className="max-md:w-[5.25rem] max-md:min-w-[5.25rem] max-md:max-w-[5.5rem] pl-1 max-md:pr-2 text-right md:w-[140px] md:min-w-[140px] md:max-w-none md:pl-4 md:pr-4">
-                    <span className="text-xs md:text-sm">Rating</span>
+                    <div className="flex items-center justify-end gap-1">
+                      <span className="text-xs md:text-sm">Rating</span>
+                      <RatingConfigPopover winPct={winPct} onWinPctCommit={setWinPct} />
+                    </div>
                   </TableHead>
                 </TableRow>
               </TableHeader>

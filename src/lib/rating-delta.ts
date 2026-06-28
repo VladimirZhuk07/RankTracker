@@ -1,5 +1,6 @@
 import type { MatchRecord } from './storage/definitions';
 import { aggregateMatchesWeighted, calculateStats } from './calculations';
+import { DEFAULT_WIN_LOSS_MODIFIERS, type WinLossModifiers } from './rating-modifiers';
 
 function matchDate(m: MatchRecord): Date | null {
   const t = m.date;
@@ -87,7 +88,8 @@ function computeRatingSnapshotAtEndOfCutoff(
   allMatches: MatchRecord[],
   neutralSessionIds: Set<string>,
   userId: string,
-  cutoffInclusive: Date
+  cutoffInclusive: Date,
+  modifiers: WinLossModifiers = DEFAULT_WIN_LOSS_MODIFIERS
 ): number {
   const through = allMatches.filter((m) => {
     const d = matchDate(m);
@@ -98,7 +100,7 @@ function computeRatingSnapshotAtEndOfCutoff(
   }
 
   const userMatches = through.filter((m) => m.userId === userId);
-  const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds);
+  const weightedStats = aggregateMatchesWeighted(userMatches, neutralSessionIds, modifiers);
   return calculateStats(weightedStats).rating;
 }
 
@@ -111,7 +113,8 @@ function computeRatingSnapshotAtEndOfCutoff(
 export function getRatingDeltaLastTwoPlayingDays(
   allMatches: MatchRecord[],
   neutralSessionIds: Set<string>,
-  userId: string
+  userId: string,
+  modifiers: WinLossModifiers = DEFAULT_WIN_LOSS_MODIFIERS
 ): number | null {
   const recentAllMatches = getRecentMatchesWithinYear(allMatches);
   if (recentAllMatches.length === 0) {
@@ -133,8 +136,8 @@ export function getRatingDeltaLastTwoPlayingDays(
   const lastEnd = endOfLocalDayFromKey(lastKey);
   const prevEnd = endOfLocalDayFromKey(prevKey);
 
-  const ratingLast = computeRatingSnapshotAtEndOfCutoff(recentAllMatches, neutralSessionIds, userId, lastEnd);
-  const ratingPrev = computeRatingSnapshotAtEndOfCutoff(recentAllMatches, neutralSessionIds, userId, prevEnd);
+  const ratingLast = computeRatingSnapshotAtEndOfCutoff(recentAllMatches, neutralSessionIds, userId, lastEnd, modifiers);
+  const ratingPrev = computeRatingSnapshotAtEndOfCutoff(recentAllMatches, neutralSessionIds, userId, prevEnd, modifiers);
   return ratingLast - ratingPrev;
 }
 

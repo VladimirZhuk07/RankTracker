@@ -1,4 +1,5 @@
 import type { MatchRecord, UserStatsData } from './storage/definitions';
+import { DEFAULT_WIN_LOSS_MODIFIERS, type WinLossModifiers } from './rating-modifiers';
 
 export type UserStats = {
   kdRatio: number;
@@ -24,8 +25,11 @@ export type WeightedStatsData = {
  */
 export const MAX_RAW_RATING = 52.43;
 
-export function calculateWinModifier(won: boolean): number {
-  return won ? 1.1 : 0.9;
+export function calculateWinModifier(
+  won: boolean,
+  modifiers: WinLossModifiers = DEFAULT_WIN_LOSS_MODIFIERS
+): number {
+  return won ? modifiers.win : modifiers.loss;
 }
 
 export function aggregateMatchesToStats(matches: MatchRecord[]): UserStatsData {
@@ -40,11 +44,15 @@ export function aggregateMatchesToStats(matches: MatchRecord[]): UserStatsData {
   );
 }
 
-export function aggregateMatchesWeighted(matches: MatchRecord[], neutralSessionIds?: Set<string>): WeightedStatsData {
+export function aggregateMatchesWeighted(
+  matches: MatchRecord[],
+  neutralSessionIds?: Set<string>,
+  modifiers: WinLossModifiers = DEFAULT_WIN_LOSS_MODIFIERS
+): WeightedStatsData {
   return matches.reduce(
     (acc, m) => {
       const isNeutralSession = neutralSessionIds?.has(m.sessionId) ?? false;
-      const modifier = isNeutralSession ? 1 : calculateWinModifier(m.won);
+      const modifier = isNeutralSession ? 1 : calculateWinModifier(m.won, modifiers);
       return {
         effectiveKills: acc.effectiveKills + m.kills * modifier,
         effectiveDeaths: acc.effectiveDeaths + m.deaths,
